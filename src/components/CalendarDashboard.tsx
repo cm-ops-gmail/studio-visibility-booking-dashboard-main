@@ -9,7 +9,6 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
-import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -214,11 +213,11 @@ export function CalendarDashboard() {
 
         <div className="ml-auto hidden sm:flex items-center gap-6">
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-md border border-dashed border-zinc-700 bg-zinc-900/30" />
+                <div className="w-3 h-3 rounded-md border border-emerald-500/50 bg-emerald-500/10" />
                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Available</span>
             </div>
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-md bg-primary shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+                <div className="w-3 h-3 rounded-md bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]" />
                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Booked</span>
             </div>
         </div>
