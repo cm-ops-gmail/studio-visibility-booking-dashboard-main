@@ -14,6 +14,8 @@ export interface ClassBooking {
   endTimeLabel?: string;   // Pre-formatted for display
   isBooked: boolean;
   suggestedDescription?: string;
+  rowSpan?: number; // Calculated intervals to span
+  isFirst?: boolean; // Whether this is the starting interval for rendering
 }
 
 export interface TimeInterval {

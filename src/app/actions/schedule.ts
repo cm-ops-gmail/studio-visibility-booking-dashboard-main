@@ -1,8 +1,9 @@
+
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, isWithinInterval, addMinutes, startOfDay } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, isWithinInterval, addMinutes } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
@@ -50,7 +51,6 @@ function normalizeStudio(name: string): string {
  */
 function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  // Try splitting by comma: "Friday, March 13, 2026" -> ["Friday", " March 13", " 2026"]
   const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
     const monthDay = parts[1]; // "March 13"
@@ -69,7 +69,6 @@ function parseSheetDate(dateStr: string): Date | null {
 export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // Use a fixed reference day for time calculations
   const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
 
   // 1. Column Mapping Logic
@@ -108,7 +107,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       if (!parsedDay) return null;
 
       const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
-      // STRICT DATE FILTERING
       if (rowDateStr !== targetDateStr) return null;
 
       const studioMatch = normalizeStudio(studioRaw);
@@ -169,11 +167,41 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
-        return isWithinInterval(midPoint, { start: bStart, end: bEnd });
+        return midPoint >= bStart && midPoint < bEnd;
       });
 
       if (activeBooking) {
-        grid[interval.start][studio] = activeBooking;
+        const bStart = new Date(activeBooking.startTime);
+        const bEnd = new Date(activeBooking.endTime);
+        
+        // Check if the previous interval also overlapped with this same booking
+        const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
+        const prevMidPoint = addMinutes(prevIntervalStart, 1);
+        const overlapsWithPrev = prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart;
+
+        const isFirst = !overlapsWithPrev;
+        let rowSpan = 1;
+
+        if (isFirst) {
+            let scan = new Date(intervalStart);
+            while (scan <= dayEnd) {
+                const scanMid = addMinutes(scan, 1);
+                if (scanMid >= bStart && scanMid < bEnd) {
+                    rowSpan++;
+                } else {
+                    break;
+                }
+                scan = addMinutes(scan, INTERVAL_MINUTES);
+            }
+            rowSpan--; 
+            if (rowSpan < 1) rowSpan = 1;
+        }
+
+        grid[interval.start][studio] = {
+          ...activeBooking,
+          isFirst,
+          rowSpan
+        };
       } else {
         grid[interval.start][studio] = {
           id: `free-${studio}-${interval.start}`,

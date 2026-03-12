@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -25,7 +26,6 @@ export function CalendarDashboard() {
   const loadData = async (targetDate: Date) => {
     setLoading(true);
     try {
-      // Send the date as a simple string to avoid timezone shifts in Server Actions
       const dateStr = format(targetDate, 'yyyy-MM-dd');
       const data = await fetchDaySchedule(dateStr);
       setSchedule(data);
@@ -154,26 +154,14 @@ export function CalendarDashboard() {
                         const slot = schedule.grid[interval.start][studio];
                         
                         if (slot.isBooked) {
-                           const isFirstVisibleIntervalForBooking = !schedule.intervals.some(prevI => {
-                              const prevStart = new Date(prevI.start).getTime();
-                              const currStart = new Date(interval.start).getTime();
-                              const bStart = new Date(slot.startTime).getTime();
-                              const bEnd = new Date(slot.endTime).getTime();
-                              return prevStart < currStart && prevStart >= bStart && prevStart < bEnd;
-                           });
-
-                           if (!isFirstVisibleIntervalForBooking) return null;
-
-                           const spanCount = schedule.intervals.filter(i => {
-                              const iStart = new Date(i.start).getTime();
-                              const bStart = new Date(slot.startTime).getTime();
-                              const bEnd = new Date(slot.endTime).getTime();
-                              const mid = iStart + 15 * 60 * 1000;
-                              return mid >= bStart && mid < bEnd;
-                           }).length;
+                           if (!slot.isFirst) return null;
 
                            return (
-                             <TableCell key={`${interval.start}-${studio}`} rowSpan={spanCount} className="p-1 border-r border-b last:border-r-0 align-top bg-white">
+                             <TableCell 
+                               key={`${interval.start}-${studio}`} 
+                               rowSpan={slot.rowSpan || 1} 
+                               className="p-1 border-r border-b last:border-r-0 align-top bg-white"
+                             >
                                 <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
                              </TableCell>
                            );
