@@ -1,3 +1,6 @@
+
+import { CalendarDashboard } from '@/components/CalendarDashboard';
+
 export default function Home() {
-  return <></>;
+  return <CalendarDashboard />;
 }
