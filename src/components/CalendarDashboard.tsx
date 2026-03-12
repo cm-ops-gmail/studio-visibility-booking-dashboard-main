@@ -273,7 +273,7 @@ export function CalendarDashboard() {
                             Booked Slots
                         </div>
                         <span className="text-2xl text-red-500">
-                          {filterStudio === 'all' ? totalBookedCount : summaryData.bookedByStudio[filterStudio]?.count || 0}
+                          {filterStudio === 'all' ? totalBookedCount : (summaryData.bookedByStudio[filterStudio]?.count || 0)}
                         </span>
                     </CardTitle>
                 </CardHeader>
@@ -304,7 +304,7 @@ export function CalendarDashboard() {
                                     ))
                                 ) : null
                             )}
-                            {(filterStudio === 'all' ? totalBookedCount : summaryData.bookedByStudio[filterStudio]?.count || 0) === 0 && (
+                            {(filterStudio === 'all' ? totalBookedCount : (summaryData.bookedByStudio[filterStudio]?.count || 0)) === 0 && (
                                 <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No bookings matched</p>
                             )}
                         </div>
@@ -321,7 +321,7 @@ export function CalendarDashboard() {
                             Available Slots
                         </div>
                         <span className="text-2xl text-emerald-500">
-                          {filterStudio === 'all' ? totalAvailableCount : summaryData.availableByStudio[filterStudio]?.count || 0}
+                          {filterStudio === 'all' ? totalAvailableCount : (summaryData.availableByStudio[filterStudio]?.count || 0)}
                         </span>
                     </CardTitle>
                 </CardHeader>
@@ -350,7 +350,7 @@ export function CalendarDashboard() {
                                     </div>
                                 ) : null
                             )}
-                            {(filterStudio === 'all' ? totalAvailableCount : summaryData.availableByStudio[filterStudio]?.count || 0) === 0 && (
+                            {(filterStudio === 'all' ? totalAvailableCount : (summaryData.availableByStudio[filterStudio]?.count || 0)) === 0 && (
                                 <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No slots available</p>
                             )}
                         </div>
