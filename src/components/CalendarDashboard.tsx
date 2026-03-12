@@ -349,7 +349,7 @@ export function CalendarDashboard() {
               <div className="h-full bg-zinc-900/30 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-hidden flex flex-col relative">
                 <div className="overflow-auto flex-1 scrollbar-hide">
                   <Table className="border-separate border-spacing-0 w-full min-w-max">
-                    <TableHeader className="sticky top-0 z-[60]">
+                    <TableHeader className="sticky top-0 z-[60] bg-zinc-950">
                       <TableRow className="bg-zinc-950 border-none">
                         <TableHead className="w-[80px] min-w-[80px] sticky top-0 left-0 z-[70] bg-zinc-950 font-black text-orange-500 uppercase tracking-[0.2em] text-center border-r border-b border-zinc-900/50 p-4 text-[9px] shadow-[2px_2px_10px_rgba(0,0,0,0.5)]">
                           <div className="flex flex-col items-center gap-1.5">
