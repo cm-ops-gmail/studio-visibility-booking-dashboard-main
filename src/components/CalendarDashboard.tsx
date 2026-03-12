@@ -104,7 +104,7 @@ export function CalendarDashboard() {
   }, [schedule]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-950 text-white selection:bg-primary/30 selection:text-white font-body">
+    <div className="min-h-screen flex flex-col bg-zinc-950 text-white selection:bg-orange-500/30 selection:text-white font-body">
       <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-900 px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(234,88,12,0.3)]">
@@ -154,7 +154,7 @@ export function CalendarDashboard() {
                 size="sm" 
                 onClick={() => loadData(date)}
                 disabled={loading}
-                className="h-9 rounded-xl gap-2 border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800 hover:text-white text-[10px] font-black tracking-widest px-4 shadow-lg hover:shadow-primary/5"
+                className="h-9 rounded-xl gap-2 border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800 hover:text-white text-[10px] font-black tracking-widest px-4 shadow-lg hover:shadow-orange-500/5"
             >
             {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
             SYNC DATA
