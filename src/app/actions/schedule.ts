@@ -96,7 +96,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   // 3. Generate fixed 30-minute intervals
   const intervals: TimeInterval[] = [];
   let current = new Date(dayStart);
-  while (current < dayEnd) {
+  while (current <= dayEnd) {
     const next = addMinutes(current, INTERVAL_MINUTES);
     intervals.push({
       start: current.toISOString(),
@@ -114,15 +114,13 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     grid[intervalKey] = {};
     
     const intervalStart = new Date(interval.start);
-    const intervalEnd = new Date(interval.end);
-    const midPoint = addMinutes(intervalStart, 1); // Check a point inside the interval
+    const midPoint = addMinutes(intervalStart, 1);
 
     ALLOWED_STUDIOS.forEach((studio) => {
       const activeBooking = bookings.find(b => {
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
-        // Interval is covered if the midpoint of the 30-min slot is within the booking
         return isWithinInterval(midPoint, { start: bStart, end: bEnd });
       });
 
