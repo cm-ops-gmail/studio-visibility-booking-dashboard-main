@@ -25,7 +25,7 @@ export function SlotCard({ slot }: SlotCardProps) {
         <CardContent className="p-3 flex flex-col gap-3 h-full relative z-10">
           <div className="space-y-2 flex-1">
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                  <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.1em] text-white border-red-500/40 bg-red-500/10 px-2 py-0.5 rounded-md">
                    {slot.productType || 'CLASS'}
                  </Badge>

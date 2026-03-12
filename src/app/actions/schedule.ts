@@ -109,18 +109,23 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       if (!startTime) return null;
 
       let endTime: Date | null = null;
-      if (productType === 'Studio Booking' && entryTimeVal) {
-          endTime = parseTime(entryTimeVal, referenceDay);
-      } else {
+      // Special logic for Studio Booking: Use Entry Time as the End Time
+      if (productType.toLowerCase().includes('studio booking') && entryTimeVal) {
+          const parsedEndTime = parseTime(entryTimeVal, referenceDay);
+          if (parsedEndTime) {
+            endTime = parsedEndTime;
+          }
+      }
+      
+      // Fallback for missing or unparseable end times
+      if (!endTime) {
           endTime = addHours(startTime, CLASS_DURATION_HOURS);
       }
-
-      if (!endTime) return null;
 
       const durationMinutes = Math.abs(differenceInMinutes(endTime, startTime));
       const hours = Math.floor(durationMinutes / 60);
       const mins = durationMinutes % 60;
-      const durationLabel = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+      const durationLabel = hours > 0 ? `${hours}h ${mins > 0 ? mins + 'm' : ''}` : `${mins}m`;
 
       return {
         id: `row-${index}`, 
@@ -170,7 +175,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
         
-        // Handle potentially reversed times if data is inconsistent
         const actualStart = bStart < bEnd ? bStart : bEnd;
         const actualEnd = bStart < bEnd ? bEnd : bStart;
 
