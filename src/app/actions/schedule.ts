@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
@@ -11,12 +10,32 @@ const CLASS_DURATION = 2; // Hours
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
+  // 1. Extract ALL unique studios from the entire spreadsheet
+  const allStudios = Array.from(new Set(
+    allRows
+      .map(row => String(row['Studio'] || '').trim())
+      .filter(studio => studio !== '' && studio !== 'Studio') // Avoid header artifacts
+  )).sort();
+
+  // 2. Extract ALL unique time slots from the entire spreadsheet to keep the grid consistent
+  const allTimeSlotStrings = Array.from(new Set(
+    allRows
+      .map(row => String(row['Scheduled Time'] || '').trim())
+      .filter(time => time !== '' && time !== 'Scheduled Time')
+  )).sort((a, b) => {
+    const dateA = parse(a, 'h:mm a', new Date());
+    const dateB = parse(b, 'h:mm a', new Date());
+    return compareAsc(dateA, dateB);
+  });
+
+  // 3. Parse bookings for the specific target date
   const bookings: ClassBooking[] = allRows
     .filter((row) => row['Date'] && row['Scheduled Time'])
     .map((row) => {
       const dateStr = String(row['Date']).trim();
       const timeStr = String(row['Scheduled Time']).trim();
       
+      // Expected format: "Thursday, March 12, 2026"
       let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
       if (!isValid(parsedDay)) {
         parsedDay = new Date(dateStr);
@@ -45,21 +64,11 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     })
     .filter((b) => isValid(new Date(b.startTime)) && isSameDay(new Date(b.startTime), targetDate));
 
-  const uniqueStudios = Array.from(new Set(bookings.map((b) => b.studio))).sort();
-  
-  // Extract and sort unique time slots from the data
-  const timeSlotStrings = Array.from(new Set(bookings.map(b => b.scheduledTime)));
-  const sortedTimeSlots = timeSlotStrings.sort((a, b) => {
-    const dateA = parse(a, 'h:mm a', targetDate);
-    const dateB = parse(b, 'h:mm a', targetDate);
-    return compareAsc(dateA, dateB);
-  });
-
   const grid: Record<string, Record<string, ClassBooking>> = {};
 
-  sortedTimeSlots.forEach((time) => {
+  allTimeSlotStrings.forEach((time) => {
     grid[time] = {};
-    uniqueStudios.forEach((studio) => {
+    allStudios.forEach((studio) => {
       const booking = bookings.find(b => b.studio === studio && b.scheduledTime === time);
       if (booking) {
         grid[time][studio] = booking;
@@ -86,8 +95,8 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
 
   return {
     date: format(targetDate, 'yyyy-MM-dd'),
-    studios: uniqueStudios,
-    timeSlots: sortedTimeSlots,
+    studios: allStudios,
+    timeSlots: allTimeSlotStrings,
     grid,
   };
 }
