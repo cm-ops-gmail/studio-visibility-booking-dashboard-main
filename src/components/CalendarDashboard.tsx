@@ -5,18 +5,23 @@ import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function CalendarDashboard() {
   const [date, setDate] = useState<Date>(() => new Date());
   const [schedule, setSchedule] = useState<DaySchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+
+  // Filter States
+  const [filterStudio, setFilterStudio] = useState<string>('all');
+  const [filterAvailability, setFilterAvailability] = useState<string>('all');
 
   useEffect(() => {
     setIsMounted(true);
@@ -44,6 +49,12 @@ export function CalendarDashboard() {
   const nextDay = () => setDate(addDays(date, 1));
   const prevDay = () => setDate(subDays(date, 1));
 
+  const filteredStudios = useMemo(() => {
+    if (!schedule) return [];
+    if (filterStudio === 'all') return schedule.studios;
+    return schedule.studios.filter(s => s === filterStudio);
+  }, [schedule, filterStudio]);
+
   const studioBookings = useMemo(() => {
     if (!schedule) return {};
     const map: Record<string, ClassBooking[]> = {};
@@ -61,7 +72,7 @@ export function CalendarDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9FD]">
-      <header className="sticky top-0 z-30 bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-30 bg-white border-b px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-[#403399] rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
             <CalendarIcon className="w-5 h-5 text-white" />
@@ -70,11 +81,11 @@ export function CalendarDashboard() {
             <h1 className="text-xl font-bold tracking-tight text-[#403399]">
               Studio TimeGrid
             </h1>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Operations (Dhaka Time)</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Dhaka Time (GMT+6)</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border">
+        <div className="flex flex-wrap items-center gap-2 bg-muted/50 p-1 rounded-lg border">
           <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 hover:bg-white rounded-md">
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -106,17 +117,68 @@ export function CalendarDashboard() {
           </Button>
         </div>
 
-        <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => loadData(date)}
-            disabled={loading}
-            className="rounded-full gap-2 border-primary/20 text-primary"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Sync
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => loadData(date)}
+                disabled={loading}
+                className="rounded-full gap-2 border-primary/20 text-primary bg-white hover:bg-primary/5"
+            >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Sync
+            </Button>
+        </div>
       </header>
+
+      {/* Filters Bar */}
+      <div className="px-6 py-4 bg-white/50 border-b flex flex-wrap items-center gap-6">
+        <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <Layers className="w-3.5 h-3.5" />
+                Studio
+            </div>
+            <Select value={filterStudio} onValueChange={setFilterStudio}>
+                <SelectTrigger className="w-[200px] h-9 rounded-full bg-white border-primary/10">
+                    <SelectValue placeholder="All Studios" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Studios</SelectItem>
+                    {schedule?.studios.map(studio => (
+                        <SelectItem key={studio} value={studio}>{studio}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+
+        <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <Filter className="w-3.5 h-3.5" />
+                Availability
+            </div>
+            <Select value={filterAvailability} onValueChange={setFilterAvailability}>
+                <SelectTrigger className="w-[160px] h-9 rounded-full bg-white border-primary/10">
+                    <SelectValue placeholder="All Slots" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Slots</SelectItem>
+                    <SelectItem value="available">Available Only</SelectItem>
+                    <SelectItem value="booked">Booked Classes</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+
+        <div className="ml-auto text-xs text-muted-foreground flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-[#403399]/10 border border-[#403399]/20" />
+                <span>Available Slot</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-[#403399] shadow-sm" />
+                <span>Booked Class</span>
+            </div>
+        </div>
+      </div>
 
       <main className="flex-1 p-6 overflow-hidden">
         {!isMounted || loading ? (
@@ -124,7 +186,7 @@ export function CalendarDashboard() {
             <Loader2 className="h-10 w-10 text-primary animate-spin" />
             <p className="text-muted-foreground font-medium">Updating time grid...</p>
           </div>
-        ) : schedule && schedule.studios.length > 0 ? (
+        ) : schedule && filteredStudios.length > 0 ? (
           <div className="bg-white rounded-3xl border shadow-sm overflow-hidden h-full flex flex-col">
             <div className="overflow-auto flex-1">
               <Table className="border-separate border-spacing-0 w-full min-w-max h-full">
@@ -136,7 +198,7 @@ export function CalendarDashboard() {
                         TIME
                       </div>
                     </TableHead>
-                    {schedule.studios.map((studio) => (
+                    {filteredStudios.map((studio) => (
                       <TableHead key={studio} className="min-w-[240px] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b py-6 last:border-r-0 whitespace-nowrap px-4">
                         {studio}
                       </TableHead>
@@ -149,9 +211,13 @@ export function CalendarDashboard() {
                       <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-4 text-[10px] leading-tight px-1 h-20">
                         {interval.label}
                       </TableCell>
-                      {schedule.studios.map((studio) => {
+                      {filteredStudios.map((studio) => {
                         const slot = schedule.grid[interval.start][studio];
                         
+                        // Handle filters
+                        const shouldShowBooked = filterAvailability === 'all' || filterAvailability === 'booked';
+                        const shouldShowAvailable = filterAvailability === 'all' || filterAvailability === 'available';
+
                         if (slot.isBooked) {
                            // If not the first interval of a booking, don't render a cell (it's spanned by rowSpan)
                            if (!slot.isFirst) return null;
@@ -161,10 +227,16 @@ export function CalendarDashboard() {
                                key={`${interval.start}-${studio}`} 
                                rowSpan={slot.rowSpan || 1} 
                                className="p-0 border-r border-b last:border-r-0 align-top bg-white h-full"
-                               style={{ height: '1px' }} // Standard trick to make cell children fill full spanned height
+                               style={{ height: '1px' }}
                              >
                                 <div className="h-full w-full p-1 min-h-full">
-                                    <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                                    {shouldShowBooked ? (
+                                        <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                                    ) : (
+                                        <div className="h-full w-full rounded-lg bg-muted/20 border border-dashed border-muted flex items-center justify-center">
+                                            <span className="text-[10px] font-medium text-muted-foreground/30">HIDDEN</span>
+                                        </div>
+                                    )}
                                 </div>
                              </TableCell>
                            );
@@ -177,7 +249,11 @@ export function CalendarDashboard() {
                             className="p-0 border-r border-b last:border-r-0 align-top h-20"
                           >
                              <div className="h-full w-full p-1">
-                                <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                                {shouldShowAvailable ? (
+                                    <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                                ) : (
+                                    <div className="h-full w-full rounded-lg bg-muted/10 border border-dashed border-muted/20" />
+                                )}
                              </div>
                           </TableCell>
                         );
@@ -194,13 +270,13 @@ export function CalendarDashboard() {
               <CalendarIcon className="w-10 h-10 text-muted-foreground" />
             </div>
             <div className="space-y-2">
-                <h3 className="text-xl font-bold text-foreground">No Studios Found</h3>
+                <h3 className="text-xl font-bold text-foreground">No matching data</h3>
                 <p className="text-muted-foreground px-10">
-                    We couldn't find any studio data in the spreadsheet for {format(date, 'MMMM d, yyyy')}.
+                    We couldn't find any schedule data matching your filters for {format(date, 'MMMM d, yyyy')}.
                 </p>
             </div>
-            <Button onClick={() => setDate(new Date())} variant="secondary" className="rounded-full mt-2">
-                Back to Today
+            <Button onClick={() => { setFilterStudio('all'); setFilterAvailability('all'); }} variant="secondary" className="rounded-full mt-2">
+                Reset Filters
             </Button>
           </div>
         )}
