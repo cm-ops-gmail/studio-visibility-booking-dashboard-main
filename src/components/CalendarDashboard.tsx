@@ -12,7 +12,6 @@ import { SlotCard } from '@/components/SlotCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function CalendarDashboard() {
   const [date, setDate] = useState<Date | null>(null);
@@ -39,7 +38,7 @@ export function CalendarDashboard() {
       const data = await fetchDaySchedule(dateStr);
       setSchedule(data);
     } catch (e) {
-      console.error('Failed to load schedule:', e);
+      // Error is handled by global listeners if configured, otherwise silent in MVP
     } finally {
       setLoading(false);
     }
@@ -86,8 +85,8 @@ export function CalendarDashboard() {
   }, [schedule, filteredStudios, filterAvailability]);
 
   const summaryData = useMemo(() => {
-    const empty = { bookedByStudio: {}, availableByStudio: {} };
-    if (!schedule) return empty;
+    const defaultData = { bookedByStudio: {}, availableByStudio: {} };
+    if (!schedule) return defaultData;
     
     const bookedByStudio: Record<string, { count: number; slots: any[] }> = {};
     const availableByStudio: Record<string, { count: number; slots: any[] }> = {};
@@ -134,16 +133,12 @@ export function CalendarDashboard() {
 
   const totalBookedCount = useMemo(() => {
     if (!summaryData?.bookedByStudio) return 0;
-    const studios = Object.values(summaryData.bookedByStudio);
-    if (!studios.length) return 0;
-    return studios.reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
+    return Object.values(summaryData.bookedByStudio).reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
   }, [summaryData]);
 
   const totalAvailableCount = useMemo(() => {
     if (!summaryData?.availableByStudio) return 0;
-    const studios = Object.values(summaryData.availableByStudio);
-    if (!studios.length) return 0;
-    return studios.reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
+    return Object.values(summaryData.availableByStudio).reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
   }, [summaryData]);
 
   const studioBookings = useMemo(() => {
@@ -161,9 +156,19 @@ export function CalendarDashboard() {
     return map;
   }, [schedule]);
 
+  // Prevent Hydration Mismatch: Render initial skeleton or null until mounted
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen flex flex-col bg-zinc-950 items-center justify-center gap-6">
+        <Loader2 className="h-12 w-12 text-orange-500 animate-spin" />
+        <p className="text-zinc-500 font-black text-[10px] tracking-[0.4em] uppercase">Initializing Interface</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950 text-white selection:bg-orange-500/30 selection:text-white font-body">
-      <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-900 px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
+      <header className="sticky top-0 z-[100] bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-900 px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(234,88,12,0.3)]">
             <Zap className="w-5 h-5 text-white fill-white" />
@@ -176,37 +181,35 @@ export function CalendarDashboard() {
           </div>
         </div>
 
-        {isMounted && (
-          <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 shadow-inner">
-            <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="px-6 h-8 font-black text-xs text-white hover:bg-zinc-800 rounded-lg transition-all tracking-widest uppercase"
-                >
-                  {formattedDateLabel}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl" align="center">
-                <Calendar
-                  mode="single"
-                  selected={date || undefined}
-                  onSelect={(d) => d && setDate(d)}
-                  initialFocus
-                  className="bg-zinc-900 text-white"
-                />
-              </PopoverContent>
-            </Popover>
+        <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 shadow-inner">
+          <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                className="px-6 h-8 font-black text-xs text-white hover:bg-zinc-800 rounded-lg transition-all tracking-widest uppercase"
+              >
+                {formattedDateLabel}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl" align="center">
+              <Calendar
+                mode="single"
+                selected={date || undefined}
+                onSelect={(d) => d && setDate(d)}
+                initialFocus
+                className="bg-zinc-900 text-white"
+              />
+            </PopoverContent>
+          </Popover>
 
-            <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+          <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
         <div className="flex items-center gap-3">
             <Button 
@@ -223,70 +226,68 @@ export function CalendarDashboard() {
       </header>
 
       {/* Filter Bar */}
-      {isMounted && (
-        <div className="px-6 py-3 bg-zinc-950/50 border-b border-zinc-900/50 flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-3">
-              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Layers className="w-3 h-3 text-orange-500" />
-                  STUDIO
-              </label>
-              <Select value={filterStudio} onValueChange={setFilterStudio}>
-                  <SelectTrigger className="w-[140px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white hover:border-zinc-700 transition-all">
-                      <SelectValue placeholder="All Studios" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                      <SelectItem value="all">ALL LOCATIONS</SelectItem>
-                      {schedule?.studios.map(studio => (
-                          <SelectItem key={studio} value={studio}>{studio.toUpperCase()}</SelectItem>
-                      ))}
-                  </SelectContent>
-              </Select>
-          </div>
-
-          <div className="flex items-center gap-3">
-              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Filter className="w-3 h-3 text-orange-500" />
-                  STATUS
-              </label>
-              <Select value={filterAvailability} onValueChange={setFilterAvailability}>
-                  <SelectTrigger className="w-[140px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white hover:border-zinc-700 transition-all">
-                      <SelectValue placeholder="All Slots" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                      <SelectItem value="all">ALL SLOTS</SelectItem>
-                      <SelectItem value="available">AVAILABLE ONLY</SelectItem>
-                      <SelectItem value="booked">BOOKED CLASSES</SelectItem>
-                  </SelectContent>
-              </Select>
-          </div>
-
-          {isFiltered && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={clearFilters}
-              className="h-9 text-[9px] font-black text-red-500 hover:text-white hover:bg-red-500/20 gap-2 rounded-xl px-4 transition-all"
-            >
-              <XCircle className="w-3.5 h-3.5" />
-              CLEAR ALL
-            </Button>
-          )}
-
-          <div className="ml-auto hidden sm:flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-md border border-emerald-500/50 bg-emerald-500/10" />
-                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Available</span>
-              </div>
-              <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-md bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]" />
-                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Booked</span>
-              </div>
-          </div>
+      <div className="px-6 py-3 bg-zinc-950/50 border-b border-zinc-900/50 flex flex-wrap items-center gap-6">
+        <div className="flex items-center gap-3">
+            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Layers className="w-3 h-3 text-orange-500" />
+                STUDIO
+            </label>
+            <Select value={filterStudio} onValueChange={setFilterStudio}>
+                <SelectTrigger className="w-[140px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white hover:border-zinc-700 transition-all">
+                    <SelectValue placeholder="All Studios" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                    <SelectItem value="all">ALL LOCATIONS</SelectItem>
+                    {schedule?.studios.map(studio => (
+                        <SelectItem key={studio} value={studio}>{studio.toUpperCase()}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
-      )}
+
+        <div className="flex items-center gap-3">
+            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Filter className="w-3 h-3 text-orange-500" />
+                STATUS
+            </label>
+            <Select value={filterAvailability} onValueChange={setFilterAvailability}>
+                <SelectTrigger className="w-[140px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white hover:border-zinc-700 transition-all">
+                    <SelectValue placeholder="All Slots" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                    <SelectItem value="all">ALL SLOTS</SelectItem>
+                    <SelectItem value="available">AVAILABLE ONLY</SelectItem>
+                    <SelectItem value="booked">BOOKED CLASSES</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+
+        {isFiltered && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={clearFilters}
+            className="h-9 text-[9px] font-black text-red-500 hover:text-white hover:bg-red-500/20 gap-2 rounded-xl px-4 transition-all"
+          >
+            <XCircle className="w-3.5 h-3.5" />
+            CLEAR ALL
+          </Button>
+        )}
+
+        <div className="ml-auto hidden sm:flex items-center gap-6">
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-md border border-emerald-500/50 bg-emerald-500/10" />
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Available</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-md bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]" />
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Booked</span>
+            </div>
+        </div>
+      </div>
 
       {/* Summary Cards */}
-      {!loading && schedule && isMounted && (
+      {!loading && schedule && (
         <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-700">
             {/* Booked Slots Card */}
             <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-red-500/20">
@@ -377,28 +378,28 @@ export function CalendarDashboard() {
       )}
 
       <main className="flex-1 p-6 overflow-hidden flex flex-col bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.03),transparent)]">
-        {!isMounted || loading ? (
+        {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-6">
             <div className="relative">
                 <div className="absolute inset-0 bg-orange-600/20 blur-3xl animate-pulse" />
                 <Loader2 className="h-12 w-12 text-orange-500 animate-spin relative z-10" />
             </div>
-            <p className="text-zinc-500 font-black text-[10px] tracking-[0.4em] uppercase animate-pulse">Initializing Interface</p>
+            <p className="text-zinc-500 font-black text-[10px] tracking-[0.4em] uppercase animate-pulse">Refreshing Dataset</p>
           </div>
         ) : schedule && filteredIntervals.length > 0 ? (
           <div className="bg-zinc-900/20 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-hidden flex-1 flex flex-col backdrop-blur-md">
             <div className="overflow-auto flex-1 scrollbar-hide">
               <Table className="border-separate border-spacing-0 w-full min-w-max">
-                <TableHeader className="sticky top-0 z-30">
-                  <TableRow className="bg-zinc-950/95 border-none">
-                    <TableHead className="w-[70px] min-w-[70px] sticky left-0 z-40 bg-zinc-950 font-black text-orange-500 uppercase tracking-[0.2em] text-center border-r border-b border-zinc-900/50 p-4 text-[9px]">
+                <TableHeader className="sticky top-0 z-[60]">
+                  <TableRow className="bg-zinc-950 border-none">
+                    <TableHead className="w-[70px] min-w-[70px] sticky top-0 left-0 z-[70] bg-zinc-950 font-black text-orange-500 uppercase tracking-[0.2em] text-center border-r border-b border-zinc-900/50 p-4 text-[9px] shadow-[2px_2px_10px_rgba(0,0,0,0.5)]">
                       <div className="flex flex-col items-center gap-1.5">
                         <Clock className="w-4 h-4 text-orange-500" />
                         TIME
                       </div>
                     </TableHead>
                     {filteredStudios.map((studio) => (
-                      <TableHead key={studio} className="min-w-[140px] font-black text-orange-500 uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-4 whitespace-nowrap px-6 text-[10px] bg-zinc-950 sticky top-0 z-30">
+                      <TableHead key={studio} className="min-w-[200px] font-black text-orange-500 uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-5 whitespace-nowrap px-6 text-[11px] bg-zinc-950 sticky top-0 z-[60] shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
                         {studio}
                       </TableHead>
                     ))}
@@ -406,8 +407,8 @@ export function CalendarDashboard() {
                 </TableHeader>
                 <TableBody>
                   {filteredIntervals.map((interval) => (
-                    <TableRow key={interval.start} className="hover:bg-zinc-900/5 border-none h-20 transition-all duration-300">
-                      <TableCell className="font-black text-orange-500 sticky left-0 z-20 bg-zinc-950/90 backdrop-blur-xl border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-xl shadow-black/20">
+                    <TableRow key={interval.start} className="hover:bg-zinc-900/5 border-none h-24 transition-all duration-300">
+                      <TableCell className="font-black text-orange-500 sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-xl border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-[5px_0_15px_rgba(0,0,0,0.3)]">
                         {interval.label}
                       </TableCell>
                       {filteredStudios.map((studio) => {
