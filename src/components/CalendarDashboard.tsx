@@ -163,7 +163,7 @@ export function CalendarDashboard() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-950 text-white selection:bg-orange-500/30 selection:text-white font-body">
+    <div className="min-h-screen flex flex-col bg-zinc-950 text-white selection:bg-orange-500/30 selection:text-white font-body overflow-hidden">
       {/* Header - Hydration safe */}
       <header className="shrink-0 bg-zinc-950 border-b border-zinc-900 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 z-[100]">
         <div className="flex items-center gap-4">
@@ -265,7 +265,7 @@ export function CalendarDashboard() {
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                  <div className="max-h-[800px] overflow-y-auto p-4 space-y-3 scrollbar-hide">
+                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 scrollbar-hide">
                       {filterStudio === 'all' ? (
                           Object.entries(summaryData.bookedByStudio || {})
                               .filter(([_, data]: [any, any]) => data.count > 0)
@@ -310,7 +310,7 @@ export function CalendarDashboard() {
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                  <div className="max-h-[800px] overflow-y-auto p-4 space-y-3 scrollbar-hide">
+                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 scrollbar-hide">
                       {filterStudio === 'all' ? (
                           Object.entries(summaryData.availableByStudio || {})
                               .filter(([_, data]: [any, any]) => data.count > 0)
@@ -341,8 +341,8 @@ export function CalendarDashboard() {
           </Card>
       </div>
 
-      {/* Calendar Section (Dataframe) - Set height for 35 slots */}
-      <div className="px-6 pb-12 flex-1">
+      {/* Calendar Section (Dataframe) - Set height for 40 slots */}
+      <div className="px-6 pb-12 flex-1 flex flex-col min-h-0">
           {loading ? (
             <div className="h-[600px] flex flex-col items-center justify-center gap-6 bg-zinc-900/20 border border-zinc-900 rounded-[2rem]">
               <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
@@ -351,8 +351,8 @@ export function CalendarDashboard() {
           ) : schedule && filteredIntervals.length > 0 ? (
             <div 
               ref={dataframeRef} 
-              className="bg-zinc-900/30 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-auto scrollbar-hide relative"
-              style={{ maxHeight: 'calc(35 * 64px)' }} // Approx height for 35 slots at h-16
+              className="bg-zinc-900/30 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-auto scrollbar-hide relative flex-1"
+              style={{ maxHeight: 'calc(40 * 64px)' }} // Approx height for 40 slots at h-16
             >
               <Table className="border-separate border-spacing-0 w-full min-w-max">
                 <TableHeader className="sticky top-0 z-[60] bg-zinc-950">
@@ -410,7 +410,7 @@ export function CalendarDashboard() {
               </Table>
             </div>
           ) : (
-            <div className="h-[600px] flex flex-col items-center justify-center text-center gap-8 bg-zinc-900/10 border border-zinc-900 rounded-[3rem] backdrop-blur-sm">
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-8 bg-zinc-900/10 border border-zinc-900 rounded-[3rem] backdrop-blur-sm">
               <CalendarDays className="w-12 h-12 text-zinc-800" />
               <div className="space-y-2">
                   <h3 className="text-xl font-black text-white tracking-tight uppercase">No schedule data</h3>
