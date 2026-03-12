@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Sparkles, Loader2, Clock, Layers, ExternalLink } from 'lucide-react';
-import { getSmartSuggestion } from '@/app/actions/schedule';
+import { User, Clock, Layers, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface SlotCardProps {
@@ -13,22 +11,7 @@ interface SlotCardProps {
   existingBookings: ClassBooking[];
 }
 
-export function SlotCard({ slot, existingBookings }: SlotCardProps) {
-  const [suggestion, setSuggestion] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleSuggest = async () => {
-    setLoading(true);
-    try {
-      const result = await getSmartSuggestion(slot, existingBookings);
-      setSuggestion(result.suggestedDescription);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export function SlotCard({ slot }: SlotCardProps) {
   const timeRangeLabel = slot.startTimeLabel && slot.endTimeLabel 
     ? `${slot.startTimeLabel} - ${slot.endTimeLabel}`
     : '';
@@ -97,12 +80,8 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
       
       <div className="text-center space-y-3 relative z-10 w-full px-2">
         <div className="text-[9px] font-black text-white group-hover:text-emerald-500 transition-colors px-3 uppercase tracking-[0.3em] flex items-center gap-2 justify-center">
-            {suggestion ? (
-                <Sparkles className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-            ) : (
-                <div className="w-1.5 h-1.5 rounded-full bg-zinc-800 group-hover:bg-emerald-500/60 transition-colors animate-pulse" />
-            )}
-            {suggestion || "AVAILABLE"}
+            <div className="w-1.5 h-1.5 rounded-full bg-zinc-800 group-hover:bg-emerald-500/60 transition-colors animate-pulse" />
+            AVAILABLE
         </div>
         
         <div className="flex flex-col gap-2 items-center">
@@ -120,21 +99,6 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
               Request a Booking
             </Button>
           </a>
-
-          {!suggestion && (
-            <button 
-              onClick={handleSuggest} 
-              disabled={loading}
-              className="rounded-xl h-8 text-[8px] font-black uppercase tracking-[0.2em] bg-zinc-900/50 text-white/50 hover:bg-white hover:text-black transition-all border border-zinc-800 hover:border-white px-4 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 disabled:opacity-50 duration-300"
-            >
-              {loading ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Sparkles className="w-3 h-3" />
-              )}
-              ANALYZE SLOT
-            </button>
-          )}
         </div>
       </div>
     </Card>
