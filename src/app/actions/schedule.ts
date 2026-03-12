@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
@@ -11,7 +10,6 @@ const DAY_START_HOUR = 8;
 const DAY_END_HOUR = 23;
 const INTERVAL_MINUTES = 30;
 
-// Strictly defined allowed studios in the required sequence
 const ALLOWED_STUDIOS = [
   'Studio 1 - HQ1',
   'Studio 2 - HQ1',
@@ -30,31 +28,23 @@ const ALLOWED_STUDIOS = [
   'Rescheduled',
 ];
 
-/**
- * Normalizes studio names for matching. 
- */
 function normalizeStudio(name: string): string {
   const s = String(name || '').trim().toLowerCase();
   if (!s) return '';
-  
   if (s.includes('green room')) return 'Green Room';
   if (s.includes('rescheduled')) return 'Rescheduled';
-  
   const match = ALLOWED_STUDIOS.find(allowed => 
     allowed.toLowerCase() === s || allowed.toLowerCase().startsWith(s + ' -')
   );
   return match || name;
 }
 
-/**
- * Robust date parser for the "Friday, March 13, 2026" format.
- */
 function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
     const monthDay = parts[1]; // "March 13"
-    const year = parts[2] || new Date().getFullYear().toString(); // "2026"
+    const year = parts[2] || new Date().getFullYear().toString();
     const d = parse(`${monthDay} ${year}`, 'MMMM d yyyy', new Date());
     if (isValid(d)) return d;
   }
@@ -62,23 +52,12 @@ function parseSheetDate(dateStr: string): Date | null {
   return isValid(d) ? d : null;
 }
 
-/**
- * Fetches the schedule for a specific date.
- * targetDateStr is expected as "yyyy-MM-dd"
- */
 export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedule> {
   const allRows = await getSheetData();
-  
   const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
 
-  // 1. Column Mapping Logic
-  let studioKey = 'Studio';
-  let timeKey = 'Scheduled Time';
-  let dateKey = 'Date';
-  let teacherKey = 'Teacher 1';
-  let courseKey = 'Course';
-  let subjectKey = 'Subject';
-  let topicKey = 'Topic';
+  let studioKey = 'Studio', timeKey = 'Scheduled Time', dateKey = 'Date', 
+      teacherKey = 'Teacher 1', courseKey = 'Course', subjectKey = 'Subject', topicKey = 'Topic';
 
   if (allRows.length > 0) {
     const keys = Object.keys(allRows[0]);
@@ -94,9 +73,8 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     topicKey = findKey(['Topic', 'Lesson Topic']);
   }
 
-  // 2. Filter and Parse Bookings
   const bookings: ClassBooking[] = allRows
-    .map((row) => {
+    .map((row, index) => {
       const dateVal = String(row[dateKey] || '').trim();
       const timeVal = String(row[timeKey] || '').trim();
       const studioRaw = String(row[studioKey] || '').trim();
@@ -121,7 +99,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
       return {
-        id: row.id || `row-${Math.random()}`,
+        id: `row-${index}`, // Stable ID based on spreadsheet row
         studio: studioMatch,
         date: dateVal,
         scheduledTime: timeVal,
@@ -138,7 +116,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     })
     .filter((b): b is ClassBooking => b !== null);
 
-  // 3. Generate fixed 30-minute intervals (8 AM - 11 PM)
   const intervals: TimeInterval[] = [];
   const dayStart = setMinutes(setHours(referenceDay, DAY_START_HOUR), 0);
   const dayEnd = setMinutes(setHours(referenceDay, DAY_END_HOUR), 0);
@@ -154,7 +131,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     current = next;
   }
 
-  // 4. Construct the Grid
   const grid: Record<string, Record<string, ClassBooking>> = {};
 
   intervals.forEach((interval) => {
@@ -174,16 +150,16 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         const bStart = new Date(activeBooking.startTime);
         const bEnd = new Date(activeBooking.endTime);
         
-        // Check if the previous interval also overlapped with this same booking
+        // Strictly check if the SAME booking exists in the previous interval
         const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
         const prevMidPoint = addMinutes(prevIntervalStart, 1);
-        const overlapsWithPrev = prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart;
+        const overlapsWithSameBooking = prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart;
 
-        const isFirst = !overlapsWithPrev;
+        const isFirst = !overlapsWithSameBooking;
         let rowSpan = 1;
 
         if (isFirst) {
-            let scan = new Date(intervalStart);
+            let scan = addMinutes(intervalStart, INTERVAL_MINUTES);
             while (scan <= dayEnd) {
                 const scanMid = addMinutes(scan, 1);
                 if (scanMid >= bStart && scanMid < bEnd) {
@@ -193,8 +169,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
                 }
                 scan = addMinutes(scan, INTERVAL_MINUTES);
             }
-            rowSpan--; 
-            if (rowSpan < 1) rowSpan = 1;
         }
 
         grid[interval.start][studio] = {

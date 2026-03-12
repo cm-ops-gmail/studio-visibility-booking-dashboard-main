@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -72,7 +71,7 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
   }
 
   return (
-    <Card className="h-full min-h-[60px] border-dashed border-2 bg-[#F8F9FD]/50 flex flex-col items-center justify-center p-3 hover:bg-[#F8F9FD] transition-colors group">
+    <Card className="h-full min-h-full border-dashed border-2 bg-[#F8F9FD]/50 flex flex-col items-center justify-center p-3 hover:bg-[#F8F9FD] transition-colors group">
       <div className="text-center space-y-2">
         <p className="text-[9px] font-bold text-[#5C6B89] group-hover:text-[#403399] transition-colors px-2 uppercase tracking-widest">
           {suggestion || "AVAILABLE"}

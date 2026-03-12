@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -147,16 +146,14 @@ export function CalendarDashboard() {
                 <TableBody>
                   {schedule.intervals.map((interval) => (
                     <TableRow key={interval.start} className="hover:bg-transparent">
-                      <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-4 text-[10px] leading-tight px-1">
+                      <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-4 text-[10px] leading-tight px-1 h-20">
                         {interval.label}
                       </TableCell>
                       {schedule.studios.map((studio) => {
                         const slot = schedule.grid[interval.start][studio];
                         
                         if (slot.isBooked) {
-                           // If it's not the start of the booking, don't render a cell (the rowSpan from the first cell will cover this space)
                            if (!slot.isFirst) return null;
-
                            return (
                              <TableCell 
                                key={`${interval.start}-${studio}`} 
@@ -169,7 +166,7 @@ export function CalendarDashboard() {
                         }
 
                         return (
-                          <TableCell key={`${interval.start}-${studio}`} className="p-1 border-r border-b last:border-r-0 align-top">
+                          <TableCell key={`${interval.start}-${studio}`} className="p-1 border-r border-b last:border-r-0 align-top h-20">
                             <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
                           </TableCell>
                         );
