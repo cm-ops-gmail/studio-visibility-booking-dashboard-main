@@ -2,7 +2,7 @@
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isSameDay, isValid, setHours, setMinutes, isWithinInterval, addMinutes } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, isWithinInterval, addMinutes, startOfDay } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
@@ -29,6 +29,9 @@ const ALLOWED_STUDIOS = [
 
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
+  
+  // Use YYYY-MM-DD for comparison to avoid timezone issues
+  const targetDateStr = format(targetDate, 'yyyy-MM-dd');
   
   const dayStart = setMinutes(setHours(new Date(targetDate), DAY_START_HOUR), 0);
   const dayEnd = setMinutes(setHours(new Date(targetDate), DAY_END_HOUR), 0);
@@ -59,12 +62,17 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
       
       if (!dateStr || !timeStr) return null;
 
+      // Parse date correctly: "Thursday, March 12, 2026"
       let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
       if (!isValid(parsedDay)) {
         parsedDay = new Date(dateStr);
       }
       
       if (!isValid(parsedDay)) return null;
+
+      // Check if this row matches the target date before doing heavy parsing
+      const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
+      if (rowDateStr !== targetDateStr) return null;
 
       let startTime = parse(timeStr, 'h:mm a', parsedDay);
       if (!isValid(startTime)) {
@@ -87,11 +95,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
         isBooked: true,
       };
     })
-    .filter((b): b is ClassBooking => {
-      if (!b) return false;
-      const start = new Date(b.startTime);
-      return isValid(start) && isSameDay(start, targetDate);
-    });
+    .filter((b): b is ClassBooking => b !== null);
 
   // 3. Generate fixed 30-minute intervals
   const intervals: TimeInterval[] = [];
@@ -145,7 +149,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   });
 
   return {
-    date: format(targetDate, 'yyyy-MM-dd'),
+    date: targetDateStr,
     studios: ALLOWED_STUDIOS,
     intervals,
     grid,

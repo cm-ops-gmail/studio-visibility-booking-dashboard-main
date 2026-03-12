@@ -5,7 +5,7 @@ import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { User, Sparkles, Loader2 } from 'lucide-react';
 import { getSmartSuggestion } from '@/app/actions/schedule';
 import { format } from 'date-fns';
 
