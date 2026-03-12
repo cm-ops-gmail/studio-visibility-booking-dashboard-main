@@ -10,11 +10,12 @@ const CLASS_DURATION = 2; // Hours
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // 1. Extract ALL unique studios from the entire spreadsheet in order of appearance
+  // 1. Extract ALL unique studios from the entire spreadsheet to ensure they always show up
+  // We use an array to preserve the order of appearance in the sheet
   const studiosInOrder: string[] = [];
   allRows.forEach(row => {
     const s = String(row['Studio'] || '').trim();
-    if (s && s !== '' && s !== 'Studio' && !studiosInOrder.includes(s)) {
+    if (s && s !== '' && !studiosInOrder.includes(s)) {
       studiosInOrder.push(s);
     }
   });
@@ -33,7 +34,11 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
 
   // 3. Parse bookings for the specific target date
   const bookings: ClassBooking[] = allRows
-    .filter((row) => row['Date'] && row['Scheduled Time'])
+    .filter((row) => {
+        const dateStr = String(row['Date'] || '').trim();
+        const timeStr = String(row['Scheduled Time'] || '').trim();
+        return dateStr !== '' && timeStr !== '';
+    })
     .map((row) => {
       const dateStr = String(row['Date']).trim();
       const timeStr = String(row['Scheduled Time']).trim();

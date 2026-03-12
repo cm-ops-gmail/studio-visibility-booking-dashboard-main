@@ -22,18 +22,18 @@ export async function getSheetData() {
     const sheets = google.sheets({ version: 'v4', auth });
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:Z`,
+      range: `${SHEET_NAME}!A:ZZ`, // Expanded range to capture all possible columns
     });
 
     const rows = response.data.values;
     if (!rows || rows.length < 3) return [];
 
-    // Column headers are in row 1 (index 0). Trim them to avoid mismatches.
+    // Column headers are in row 1 (index 0).
     const headers = (rows[0] || []).map(h => String(h || '').trim());
     
     // Data starts from row 3 (index 2), skipping row 2
     return rows.slice(2)
-      .filter(row => row && row.length > 0 && row.some(cell => cell && String(cell).trim() !== ''))
+      .filter(row => row && row.length > 0)
       .map((row, index) => {
         const obj: any = { id: `row-${index}` };
         headers.forEach((header, i) => {
