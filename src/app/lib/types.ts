@@ -8,6 +8,7 @@ export interface ClassBooking {
   subject: string;
   topic: string;
   teacher: string;
+  productType: string; // New field
   startTime: string; // ISO
   endTime: string;   // ISO
   startTimeLabel?: string; // Pre-formatted for display

@@ -1,8 +1,9 @@
+
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes, isWithinInterval } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
@@ -41,6 +42,7 @@ function normalizeStudio(name: string): string {
 
 function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
+  // Format typically: "Friday, March 13, 2026"
   const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
     const monthDay = parts[1];
@@ -57,7 +59,8 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
   const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
 
   let studioKey = 'Studio', timeKey = 'Scheduled Time', dateKey = 'Date', 
-      teacherKey = 'Teacher 1', courseKey = 'Course', subjectKey = 'Subject', topicKey = 'Topic';
+      teacherKey = 'Teacher 1', courseKey = 'Course', subjectKey = 'Subject', topicKey = 'Topic',
+      productTypeKey = 'Product Type';
 
   if (allRows.length > 0) {
     const keys = Object.keys(allRows[0]);
@@ -71,9 +74,9 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     courseKey = findKey(['Course', 'Course Name']);
     subjectKey = findKey(['Subject', 'Subject Name']);
     topicKey = findKey(['Topic', 'Lesson Topic']);
+    productTypeKey = findKey(['Product Type', 'Type']);
   }
 
-  // Filter and format bookings for the target day
   const bookings: ClassBooking[] = allRows
     .map((row, index) => {
       const dateVal = String(row[dateKey] || '').trim();
@@ -100,7 +103,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
       return {
-        id: `row-${index}-${studioMatch}`,
+        id: `row-${index}`, // Use spreadsheet row index as a stable ID
         studio: studioMatch,
         date: dateVal,
         scheduledTime: timeVal,
@@ -108,6 +111,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         subject: String(row[subjectKey] || '').trim(),
         topic: String(row[topicKey] || '').trim(),
         teacher: String(row[teacherKey] || '').trim(),
+        productType: String(row[productTypeKey] || '').trim(),
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         startTimeLabel: format(startTime, 'h:mm a'),
@@ -144,7 +148,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
-        // Check if this 30-min slot's midpoint is within the booking's 2-hour duration
         return midPoint >= bStart && midPoint < bEnd;
       });
 
@@ -152,14 +155,11 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         const bStart = new Date(activeBooking.startTime);
         const bEnd = new Date(activeBooking.endTime);
         
-        // A slot is "first" if it's the start of the booking, or if the previous slot's midpoint was not in the same booking.
         const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
         const prevMidPoint = addMinutes(prevIntervalStart, 1);
-        const overlapsWithSameBooking = prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart;
+        const isFirst = !(prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart);
 
-        const isFirst = !overlapsWithSameBooking;
         let rowSpan = 1;
-
         if (isFirst) {
             let scan = addMinutes(intervalStart, INTERVAL_MINUTES);
             while (scan <= dayEnd) {
@@ -188,6 +188,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
           subject: '',
           topic: '',
           teacher: '',
+          productType: '',
           startTime: interval.start,
           endTime: interval.end,
           startTimeLabel: format(intervalStart, 'h:mm a'),

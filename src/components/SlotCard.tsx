@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState } from 'react';
 import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Sparkles, Loader2 } from 'lucide-react';
+import { User, Sparkles, Loader2, Info } from 'lucide-react';
 import { getSmartSuggestion } from '@/app/actions/schedule';
 
 interface SlotCardProps {
@@ -36,24 +37,36 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
     return (
       <Card className="h-full min-h-full border-l-4 border-l-[#403399] bg-white shadow-sm hover:shadow-md transition-shadow">
         <CardContent className="p-3 flex flex-col gap-2 h-full">
-          <div className="space-y-1">
+          <div className="space-y-1.5 flex-1">
             <div className="flex justify-between items-start gap-2">
-              <Badge variant="outline" className="text-[8px] font-extrabold uppercase tracking-widest text-[#403399] border-[#403399]/10 bg-[#403399]/5 px-2 py-0">
-                {slot.course || 'GENERAL'}
-              </Badge>
+              <div className="flex flex-col gap-1">
+                {slot.productType && (
+                  <span className="text-[7px] font-black uppercase tracking-tighter text-muted-foreground/70">
+                    {slot.productType}
+                  </span>
+                )}
+                <Badge variant="outline" className="text-[8px] font-extrabold uppercase tracking-widest text-[#403399] border-[#403399]/10 bg-[#403399]/5 px-2 py-0">
+                  {slot.course || 'GENERAL'}
+                </Badge>
+              </div>
               {timeRangeLabel && (
-                <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap">
+                <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap bg-muted/30 px-1.5 rounded">
                   {timeRangeLabel}
                 </span>
               )}
             </div>
+            
             <h3 className="font-headline font-bold text-sm leading-tight text-foreground line-clamp-3">
               {slot.subject}
             </h3>
+            
             {slot.topic && (
-              <p className="text-[10px] text-muted-foreground line-clamp-2 italic">
-                {slot.topic}
-              </p>
+              <div className="flex items-start gap-1.5 mt-1">
+                <Info className="w-2.5 h-2.5 text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-[10px] text-muted-foreground leading-tight italic line-clamp-2">
+                  {slot.topic}
+                </p>
+              </div>
             )}
           </div>
           
