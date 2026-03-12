@@ -55,11 +55,22 @@ function parseSheetDate(dateStr: string): Date | null {
 
 function parseTime(timeStr: string, referenceDay: Date): Date | null {
     if (!timeStr) return null;
-    let t = parse(timeStr.trim(), 'h:mm a', referenceDay);
-    if (!isValid(t)) {
-        t = parse(timeStr.trim(), 'HH:mm', referenceDay);
+    const cleanTime = timeStr.trim().toUpperCase();
+    
+    // Try multiple formats for robust parsing
+    const formats = ['h:mm a', 'h:mma', 'h a', 'ha', 'HH:mm'];
+    for (const fmt of formats) {
+        const t = parse(cleanTime, fmt, referenceDay);
+        if (isValid(t)) return t;
     }
-    return isValid(t) ? t : null;
+    
+    // Fallback attempt for manual parsing if date-fns fails
+    try {
+        const d = new Date(`${format(referenceDay, 'yyyy-MM-dd')} ${cleanTime}`);
+        if (isValid(d)) return d;
+    } catch (e) {}
+    
+    return null;
 }
 
 export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedule> {
@@ -73,7 +84,9 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
   if (allRows.length > 0) {
     const keys = Object.keys(allRows[0]);
     const findKey = (candidates: string[]) => 
-      keys.find(k => candidates.some(c => k.trim().toLowerCase() === c.toLowerCase())) || candidates[0];
+      keys.find(k => candidates.some(c => k.trim().toLowerCase() === c.toLowerCase())) || 
+      keys.find(k => candidates.some(c => k.trim().toLowerCase().includes(c.toLowerCase().split(' ')[0]))) ||
+      candidates[0];
 
     studioKey = findKey(['Studio', 'Studio Name']);
     timeKey = findKey(['Scheduled Time', 'Time', 'Start Time']);
@@ -125,7 +138,12 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const durationMinutes = Math.abs(differenceInMinutes(endTime, startTime));
       const hours = Math.floor(durationMinutes / 60);
       const mins = durationMinutes % 60;
-      const durationLabel = hours > 0 ? `${hours}h ${mins > 0 ? mins + 'm' : ''}` : `${mins}m`;
+      
+      // Build duration label: "1h 30m" or "45m" or "1h"
+      let durationLabel = '';
+      if (hours > 0) durationLabel += `${hours}H`;
+      if (mins > 0) durationLabel += `${hours > 0 ? ' ' : ''}${mins}M`;
+      if (!durationLabel) durationLabel = '0M';
 
       return {
         id: `row-${index}`, 
