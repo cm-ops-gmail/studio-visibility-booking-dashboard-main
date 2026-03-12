@@ -12,9 +12,9 @@ import { SlotCard } from '@/components/SlotCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function CalendarDashboard() {
-  // Use null initially to prevent hydration mismatch with Date.now()
   const [date, setDate] = useState<Date | null>(null);
   const [schedule, setSchedule] = useState<DaySchedule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +67,7 @@ export function CalendarDashboard() {
   const filteredIntervals = useMemo(() => {
     if (!schedule) return [];
     
-    const validIntervals = schedule.intervals.filter((interval) => {
+    return schedule.intervals.filter((interval) => {
       return filteredStudios.some((studio) => {
         const slot = schedule.grid[interval.start]?.[studio];
         if (!slot) return false;
@@ -79,50 +79,49 @@ export function CalendarDashboard() {
         return matchesAvailability;
       });
     });
-
-    if (filterAvailability === 'booked') {
-        return validIntervals.filter(interval => 
-            filteredStudios.some(studio => schedule.grid[interval.start]?.[studio]?.isBooked)
-        );
-    }
-
-    return validIntervals;
   }, [schedule, filteredStudios, filterAvailability]);
 
   const summaryData = useMemo(() => {
-    if (!schedule) return { booked: [], available: [] };
+    if (!schedule) return { bookedByStudio: {}, availableByStudio: {} };
     
-    const bookedSet = new Set<string>();
-    const bookedList: { studio: string; time: string; subject: string; id: string }[] = [];
-    const availableList: { studio: string; time: string; id: string }[] = [];
+    const bookedByStudio: Record<string, { count: number; slots: any[] }> = {};
+    const availableByStudio: Record<string, { count: number; slots: any[] }> = {};
 
-    filteredIntervals.forEach(interval => {
-      filteredStudios.forEach(studio => {
+    schedule.studios.forEach(s => {
+      bookedByStudio[s] = { count: 0, slots: [] };
+      availableByStudio[s] = { count: 0, slots: [] };
+    });
+
+    const processedBookedIds = new Set<string>();
+
+    schedule.intervals.forEach(interval => {
+      schedule.studios.forEach(studio => {
         const slot = schedule.grid[interval.start]?.[studio];
         if (!slot) return;
 
         if (slot.isBooked) {
-          if (!bookedSet.has(slot.id)) {
-            bookedSet.add(slot.id);
-            bookedList.push({
+          if (!processedBookedIds.has(slot.id)) {
+            processedBookedIds.add(slot.id);
+            bookedByStudio[studio].count++;
+            bookedByStudio[studio].slots.push({
               id: slot.id,
-              studio: slot.studio,
+              subject: slot.subject,
               time: `${slot.startTimeLabel} - ${slot.endTimeLabel}`,
-              subject: slot.subject
+              duration: slot.durationLabel
             });
           }
         } else {
-            availableList.push({
-              id: slot.id,
-              studio: slot.studio,
-              time: slot.startTimeLabel || ''
-            });
+          availableByStudio[studio].count++;
+          availableByStudio[studio].slots.push({
+            id: slot.id,
+            time: slot.startTimeLabel || ''
+          });
         }
       });
     });
 
-    return { booked: bookedList, available: availableList };
-  }, [schedule, filteredIntervals, filteredStudios]);
+    return { bookedByStudio, availableByStudio };
+  }, [schedule]);
 
   const studioBookings = useMemo(() => {
     if (!schedule) return {};
@@ -138,6 +137,9 @@ export function CalendarDashboard() {
     });
     return map;
   }, [schedule]);
+
+  const totalBookedCount = Object.values(summaryData.bookedByStudio || {}).reduce((acc: number, curr: any) => acc + curr.count, 0);
+  const totalAvailableCount = Object.values(summaryData.availableByStudio || {}).reduce((acc: number, curr: any) => acc + curr.count, 0);
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950 text-white selection:bg-orange-500/30 selection:text-white font-body">
@@ -259,63 +261,100 @@ export function CalendarDashboard() {
         </div>
       </div>
 
-      {/* Summary Cards - Updated for dynamic height */}
+      {/* Summary Cards */}
       {!loading && schedule && (
         <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-700">
-            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-red-500/20 h-fit">
+            {/* Booked Slots Card */}
+            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-red-500/20">
                 <CardHeader className="pb-2 border-b border-zinc-800 bg-red-500/5">
                     <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                         <div className="flex items-center gap-2">
                             <CheckCircle2 className="w-4 h-4 text-red-500" />
                             Booked Slots
                         </div>
-                        <span className="text-2xl text-red-500">{summaryData.booked.length}</span>
+                        <span className="text-2xl text-red-500">
+                          {filterStudio === 'all' ? totalBookedCount : summaryData.bookedByStudio[filterStudio]?.count || 0}
+                        </span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div className="p-4 space-y-3">
-                        {summaryData.booked.length > 0 ? (
-                            summaryData.booked.map((b) => (
-                                <div key={b.id} className="flex flex-col border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-black text-white uppercase tracking-tight">{b.subject}</span>
-                                        <span className="text-[10px] font-black text-zinc-400">{b.time}</span>
-                                    </div>
-                                    <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">{b.studio}</span>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No bookings matched</p>
-                        )}
-                    </div>
+                    <ScrollArea className="h-fit max-h-[400px]">
+                        <div className="p-4 space-y-3">
+                            {filterStudio === 'all' ? (
+                                // Grouped by Studio: "Studio 1: 5 slots booked"
+                                Object.entries(summaryData.bookedByStudio)
+                                    .filter(([_, data]) => data.count > 0)
+                                    .map(([studio, data]) => (
+                                        <div key={studio} className="flex items-center justify-between border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
+                                            <span className="text-[10px] font-black text-white uppercase tracking-tight">{studio}</span>
+                                            <span className="text-[10px] font-black text-red-500 uppercase">{data.count} SLOTS BOOKED</span>
+                                        </div>
+                                    ))
+                            ) : (
+                                // Specific Studio Details: timing and duration
+                                summaryData.bookedByStudio[filterStudio]?.slots.length > 0 ? (
+                                    summaryData.bookedByStudio[filterStudio].slots.map((b) => (
+                                        <div key={b.id} className="flex flex-col border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black text-white uppercase tracking-tight">{b.subject}</span>
+                                                <span className="text-[9px] font-black text-red-500">{b.time}</span>
+                                            </div>
+                                            <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">{b.duration}</span>
+                                        </div>
+                                    ))
+                                ) : null
+                            )}
+                            {(filterStudio === 'all' ? totalBookedCount : summaryData.bookedByStudio[filterStudio]?.count || 0) === 0 && (
+                                <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No bookings matched</p>
+                            )}
+                        </div>
+                    </ScrollArea>
                 </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-emerald-500/20 h-fit">
+            {/* Available Slots Card */}
+            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-emerald-500/20">
                 <CardHeader className="pb-2 border-b border-zinc-800 bg-emerald-500/5">
                     <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                         <div className="flex items-center gap-2">
                             <CircleDashed className="w-4 h-4 text-emerald-500" />
                             Available Slots
                         </div>
-                        <span className="text-2xl text-emerald-500">{summaryData.available.length}</span>
+                        <span className="text-2xl text-emerald-500">
+                          {filterStudio === 'all' ? totalAvailableCount : summaryData.availableByStudio[filterStudio]?.count || 0}
+                        </span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div className="p-4 grid grid-cols-2 gap-3">
-                        {summaryData.available.length > 0 ? (
-                            summaryData.available.map((a, i) => (
-                                <div key={`${a.id}-${i}`} className="flex items-center justify-between bg-zinc-950/50 p-2 rounded-lg border border-zinc-800">
-                                    <div className="flex flex-col">
-                                        <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none mb-1">{a.studio}</span>
-                                        <span className="text-[9px] font-black text-emerald-500">{a.time}</span>
+                    <ScrollArea className="h-fit max-h-[400px]">
+                        <div className="p-4 space-y-3">
+                            {filterStudio === 'all' ? (
+                                // Grouped by Studio: "Studio 1: 5 slots available"
+                                Object.entries(summaryData.availableByStudio)
+                                    .filter(([_, data]) => data.count > 0)
+                                    .map(([studio, data]) => (
+                                        <div key={studio} className="flex items-center justify-between border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
+                                            <span className="text-[10px] font-black text-white uppercase tracking-tight">{studio}</span>
+                                            <span className="text-[10px] font-black text-emerald-500 uppercase">{data.count} SLOTS AVAILABLE</span>
+                                        </div>
+                                    ))
+                            ) : (
+                                // Specific Studio Details: All slots for that day
+                                summaryData.availableByStudio[filterStudio]?.slots.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {summaryData.availableByStudio[filterStudio].slots.map((a, i) => (
+                                            <div key={`${a.id}-${i}`} className="flex items-center justify-between bg-zinc-950/50 p-2 rounded-lg border border-zinc-800">
+                                                <span className="text-[9px] font-black text-emerald-500">{a.time}</span>
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-[9px] text-zinc-500 font-black text-center py-8 col-span-2 uppercase tracking-[0.2em]">No slots available</p>
-                        )}
-                    </div>
+                                ) : null
+                            )}
+                            {(filterStudio === 'all' ? totalAvailableCount : summaryData.availableByStudio[filterStudio]?.count || 0) === 0 && (
+                                <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No slots available</p>
+                            )}
+                        </div>
+                    </ScrollArea>
                 </CardContent>
             </Card>
         </div>
