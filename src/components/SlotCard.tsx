@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -34,7 +35,7 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
 
   if (slot.isBooked) {
     return (
-      <Card className="h-full border-l-4 border-l-[#403399] bg-white shadow-sm hover:shadow-md transition-shadow">
+      <Card className="h-full min-h-full border-l-4 border-l-[#403399] bg-white shadow-sm hover:shadow-md transition-shadow">
         <CardContent className="p-3 flex flex-col gap-2 h-full">
           <div className="space-y-1">
             <div className="flex justify-between items-start gap-2">
@@ -71,7 +72,7 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
   }
 
   return (
-    <Card className="h-full border-dashed border-2 bg-[#F8F9FD]/50 flex flex-col items-center justify-center p-3 hover:bg-[#F8F9FD] transition-colors group min-h-[60px]">
+    <Card className="h-full min-h-[60px] border-dashed border-2 bg-[#F8F9FD]/50 flex flex-col items-center justify-center p-3 hover:bg-[#F8F9FD] transition-colors group">
       <div className="text-center space-y-2">
         <p className="text-[9px] font-bold text-[#5C6B89] group-hover:text-[#403399] transition-colors px-2 uppercase tracking-widest">
           {suggestion || "AVAILABLE"}

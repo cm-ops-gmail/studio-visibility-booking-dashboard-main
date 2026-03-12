@@ -154,6 +154,7 @@ export function CalendarDashboard() {
                         const slot = schedule.grid[interval.start][studio];
                         
                         if (slot.isBooked) {
+                           // If it's not the start of the booking, don't render a cell (the rowSpan from the first cell will cover this space)
                            if (!slot.isFirst) return null;
 
                            return (
