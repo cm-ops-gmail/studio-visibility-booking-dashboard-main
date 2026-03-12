@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
@@ -13,43 +12,46 @@ const DAY_END_HOUR = 22;
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // Columns: Studio, Scheduled Time, Date, Course, Subject, Topic, Teacher 1
-  const bookings: ClassBooking[] = allRows.map((row) => {
-    const dateStr = row['Date'];
-    const timeStr = row['Scheduled Time'];
-    
-    // Explicitly parse the date format: "Thursday, March 12, 2026"
-    let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
-    
-    // Fallback if the format doesn't match exactly
-    if (!isValid(parsedDay)) {
-      parsedDay = new Date(dateStr);
-    }
+  // Filter out rows that are missing critical date/time information
+  const bookings: ClassBooking[] = allRows
+    .filter((row) => row['Date'] && row['Scheduled Time'])
+    .map((row) => {
+      const dateStr = String(row['Date']);
+      const timeStr = String(row['Scheduled Time']);
+      
+      // Explicitly parse the date format: "Thursday, March 12, 2026"
+      let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
+      
+      // Fallback if the format doesn't match exactly
+      if (!isValid(parsedDay)) {
+        parsedDay = new Date(dateStr);
+      }
 
-    // Explicitly parse the time format: "5:45 AM"
-    let startTime = parse(timeStr, 'h:mm a', parsedDay);
-    
-    // Fallback for time
-    if (!isValid(startTime)) {
-       startTime = parsedDay;
-    }
+      // Explicitly parse the time format: "5:45 AM"
+      let startTime = parse(timeStr, 'h:mm a', parsedDay);
+      
+      // Fallback for time
+      if (!isValid(startTime)) {
+         startTime = parsedDay;
+      }
 
-    const endTime = addHours(startTime, CLASS_DURATION);
+      const endTime = addHours(startTime, CLASS_DURATION);
 
-    return {
-      id: row.id,
-      studio: row['Studio'] || 'Unknown',
-      date: dateStr,
-      scheduledTime: timeStr,
-      course: row['Course'] || '',
-      subject: row['Subject'] || '',
-      topic: row['Topic'] || '',
-      teacher: row['Teacher 1'] || '',
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      isBooked: true,
-    };
-  });
+      return {
+        id: row.id,
+        studio: row['Studio'] || 'Unknown',
+        date: dateStr,
+        scheduledTime: timeStr,
+        course: row['Course'] || '',
+        subject: row['Subject'] || '',
+        topic: row['Topic'] || '',
+        teacher: row['Teacher 1'] || '',
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        isBooked: true,
+      };
+    })
+    .filter((b) => isValid(new Date(b.startTime)));
 
   // Filter by target date
   const filteredBookings = bookings.filter((b) => isSameDay(new Date(b.startTime), targetDate));

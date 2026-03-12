@@ -1,4 +1,3 @@
-
 import { google } from 'googleapis';
 
 const SPREADSHEET_ID = '13H2FFJ8WzKbis-Ud9SXlea9NNTM6exnOaguML8MVZI4';
@@ -33,13 +32,16 @@ export async function getSheetData() {
     const headers = rows[0];
     
     // Data starts from row 3 (index 2), skipping row 2
-    return rows.slice(2).map((row, index) => {
-      const obj: any = { id: `row-${index}` };
-      headers.forEach((header, i) => {
-        obj[header] = row[i];
+    // Filter out rows that are completely empty
+    return rows.slice(2)
+      .filter(row => row && row.length > 0 && row.some(cell => cell && String(cell).trim() !== ''))
+      .map((row, index) => {
+        const obj: any = { id: `row-${index}` };
+        headers.forEach((header, i) => {
+          obj[header] = row[i];
+        });
+        return obj;
       });
-      return obj;
-    });
   } catch (error) {
     console.error('Error fetching google sheet data:', error);
     return [];
