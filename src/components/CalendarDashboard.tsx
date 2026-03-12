@@ -127,7 +127,7 @@ export function CalendarDashboard() {
         ) : schedule && schedule.studios.length > 0 ? (
           <div className="bg-white rounded-3xl border shadow-sm overflow-hidden h-full flex flex-col">
             <div className="overflow-auto flex-1">
-              <Table className="border-separate border-spacing-0 w-full min-w-max">
+              <Table className="border-separate border-spacing-0 w-full min-w-max h-full">
                 <TableHeader className="sticky top-0 z-20">
                   <TableRow className="bg-[#F8F9FD] hover:bg-[#F8F9FD]">
                     <TableHead className="w-[100px] min-w-[100px] sticky left-0 z-30 bg-[#F8F9FD] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b">
@@ -145,7 +145,7 @@ export function CalendarDashboard() {
                 </TableHeader>
                 <TableBody>
                   {schedule.intervals.map((interval) => (
-                    <TableRow key={interval.start} className="hover:bg-transparent">
+                    <TableRow key={interval.start} className="hover:bg-transparent min-h-[5rem]">
                       <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-4 text-[10px] leading-tight px-1 h-20">
                         {interval.label}
                       </TableCell>
@@ -153,23 +153,30 @@ export function CalendarDashboard() {
                         const slot = schedule.grid[interval.start][studio];
                         
                         if (slot.isBooked) {
+                           // If not the first interval of a booking, don't render a cell (it's spanned by rowSpan)
                            if (!slot.isFirst) return null;
+                           
                            return (
                              <TableCell 
                                key={`${interval.start}-${studio}`} 
                                rowSpan={slot.rowSpan || 1} 
-                               className="p-1 border-r border-b last:border-r-0 align-top bg-white"
+                               className="p-0 border-r border-b last:border-r-0 align-top bg-white h-full"
+                               style={{ height: '1px' }} // Standard trick to make cell children fill full spanned height
                              >
-                                <div className="h-full w-full">
+                                <div className="h-full w-full p-1 min-h-full">
                                     <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
                                 </div>
                              </TableCell>
                            );
                         }
 
+                        // Free slots
                         return (
-                          <TableCell key={`${interval.start}-${studio}`} className="p-1 border-r border-b last:border-r-0 align-top h-20">
-                             <div className="h-full w-full">
+                          <TableCell 
+                            key={`${interval.start}-${studio}`} 
+                            className="p-0 border-r border-b last:border-r-0 align-top h-20"
+                          >
+                             <div className="h-full w-full p-1">
                                 <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
                              </div>
                           </TableCell>

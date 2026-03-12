@@ -2,7 +2,7 @@
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes, isWithinInterval } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
@@ -73,6 +73,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     topicKey = findKey(['Topic', 'Lesson Topic']);
   }
 
+  // Filter and format bookings for the target day
   const bookings: ClassBooking[] = allRows
     .map((row, index) => {
       const dateVal = String(row[dateKey] || '').trim();
@@ -143,6 +144,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
+        // Check if this 30-min slot's midpoint is within the booking's 2-hour duration
         return midPoint >= bStart && midPoint < bEnd;
       });
 
@@ -150,6 +152,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         const bStart = new Date(activeBooking.startTime);
         const bEnd = new Date(activeBooking.endTime);
         
+        // A slot is "first" if it's the start of the booking, or if the previous slot's midpoint was not in the same booking.
         const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
         const prevMidPoint = addMinutes(prevIntervalStart, 1);
         const overlapsWithSameBooking = prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart;

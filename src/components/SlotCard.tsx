@@ -47,11 +47,11 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
                 </span>
               )}
             </div>
-            <h3 className="font-headline font-bold text-sm leading-tight text-foreground line-clamp-2">
+            <h3 className="font-headline font-bold text-sm leading-tight text-foreground line-clamp-3">
               {slot.subject}
             </h3>
             {slot.topic && (
-              <p className="text-[10px] text-muted-foreground line-clamp-1 italic">
+              <p className="text-[10px] text-muted-foreground line-clamp-2 italic">
                 {slot.topic}
               </p>
             )}
