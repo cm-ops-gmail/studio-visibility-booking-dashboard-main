@@ -2,7 +2,7 @@
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, isWithinInterval, addMinutes, startOfDay } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, isWithinInterval, addMinutes } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
@@ -25,6 +25,7 @@ const ALLOWED_STUDIOS = [
   'POD 1 - HQ1',
   'POD 2 - HQ1',
   'Green Room',
+  'Rescheduled',
 ];
 
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
@@ -36,10 +37,14 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const dayStart = setMinutes(setHours(new Date(targetDate), DAY_START_HOUR), 0);
   const dayEnd = setMinutes(setHours(new Date(targetDate), DAY_END_HOUR), 0);
 
-  // 1. Identify key columns dynamically
+  // 1. Identify key columns dynamically to handle variations in the Google Sheet
   let studioKey = 'Studio';
   let timeKey = 'Scheduled Time';
   let dateKey = 'Date';
+  let teacherKey = 'Teacher 1';
+  let courseKey = 'Course';
+  let subjectKey = 'Subject';
+  let topicKey = 'Topic';
 
   if (allRows.length > 0) {
     const sampleRow = allRows[0];
@@ -47,6 +52,10 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     studioKey = keys.find(k => k.toLowerCase().trim() === 'studio') || 'Studio';
     timeKey = keys.find(k => k.toLowerCase().includes('time')) || 'Scheduled Time';
     dateKey = keys.find(k => k.toLowerCase().includes('date')) || 'Date';
+    teacherKey = keys.find(k => k.toLowerCase().includes('teacher 1')) || keys.find(k => k.toLowerCase().includes('teacher')) || 'Teacher 1';
+    courseKey = keys.find(k => k.toLowerCase().includes('course')) || 'Course';
+    subjectKey = keys.find(k => k.toLowerCase().includes('subject')) || 'Subject';
+    topicKey = keys.find(k => k.toLowerCase().includes('topic')) || 'Topic';
   }
 
   // 2. Parse all bookings for the target date
@@ -62,7 +71,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
       
       if (!dateStr || !timeStr) return null;
 
-      // Parse date correctly: "Thursday, March 12, 2026"
+      // Explicitly parse the date format: "Thursday, March 12, 2026"
       let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
       if (!isValid(parsedDay)) {
         parsedDay = new Date(dateStr);
@@ -70,7 +79,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
       
       if (!isValid(parsedDay)) return null;
 
-      // Check if this row matches the target date before doing heavy parsing
+      // Check if this row matches the target date using YYYY-MM-DD
       const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
       if (rowDateStr !== targetDateStr) return null;
 
@@ -86,10 +95,10 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
         studio: studioValue,
         date: dateStr,
         scheduledTime: timeStr,
-        course: row['Course'] || row['COURSE'] || '',
-        subject: row['Subject'] || row['SUBJECT'] || '',
-        topic: row['Topic'] || row['TOPIC'] || '',
-        teacher: row['Teacher 1'] || row['TEACHER 1'] || row['Teacher'] || '',
+        course: row[courseKey] || '',
+        subject: row[subjectKey] || '',
+        topic: row[topicKey] || '',
+        teacher: row[teacherKey] || '',
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         isBooked: true,
