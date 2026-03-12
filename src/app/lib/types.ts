@@ -14,9 +14,15 @@ export interface ClassBooking {
   suggestedDescription?: string;
 }
 
+export interface TimeInterval {
+  start: string; // ISO
+  end: string;   // ISO
+  label: string; // e.g., "10:00 AM - 12:00 PM"
+}
+
 export interface DaySchedule {
   date: string;
   studios: string[];
-  timeSlots: string[]; // List of all unique times found for the day
-  grid: Record<string, Record<string, ClassBooking>>; // time -> studio -> booking
+  intervals: TimeInterval[]; // Dynamic time intervals for the day
+  grid: Record<string, Record<string, ClassBooking>>; // startISO -> studio -> booking
 }

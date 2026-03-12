@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -43,12 +43,20 @@ export function CalendarDashboard() {
   const nextDay = () => setDate(addDays(date, 1));
   const prevDay = () => setDate(subDays(date, 1));
 
-  const getBookingsForStudio = (studio: string): ClassBooking[] => {
-    if (!schedule) return [];
-    return schedule.timeSlots
-      .map(time => schedule.grid[time][studio])
-      .filter(slot => slot && slot.isBooked);
-  };
+  const studioBookings = useMemo(() => {
+    if (!schedule) return {};
+    const map: Record<string, ClassBooking[]> = {};
+    schedule.studios.forEach(studio => {
+      map[studio] = [];
+      schedule.intervals.forEach(interval => {
+        const booking = schedule.grid[interval.start][studio];
+        if (booking && booking.isBooked && !map[studio].some(b => b.id === booking.id)) {
+          map[studio].push(booking);
+        }
+      });
+    });
+    return map;
+  }, [schedule]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9FD]">
@@ -113,7 +121,7 @@ export function CalendarDashboard() {
         {!isMounted || loading ? (
           <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-10 w-10 text-primary animate-spin" />
-            <p className="text-muted-foreground font-medium">Fetching class schedule...</p>
+            <p className="text-muted-foreground font-medium">Updating time grid...</p>
           </div>
         ) : schedule && schedule.studios.length > 0 ? (
           <div className="bg-white rounded-3xl border shadow-sm overflow-hidden h-full flex flex-col">
@@ -121,8 +129,11 @@ export function CalendarDashboard() {
               <Table className="border-separate border-spacing-0 w-full min-w-max">
                 <TableHeader className="sticky top-0 z-20">
                   <TableRow className="bg-[#F8F9FD] hover:bg-[#F8F9FD]">
-                    <TableHead className="w-[120px] min-w-[120px] sticky left-0 z-30 bg-[#F8F9FD] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b">
-                      TIME
+                    <TableHead className="w-[140px] min-w-[140px] sticky left-0 z-30 bg-[#F8F9FD] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b">
+                      <div className="flex items-center justify-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        TIME
+                      </div>
                     </TableHead>
                     {schedule.studios.map((studio) => (
                       <TableHead key={studio} className="min-w-[280px] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b py-6 last:border-r-0 whitespace-nowrap px-4">
@@ -132,25 +143,40 @@ export function CalendarDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedule.timeSlots.map((time) => (
-                    <TableRow key={time} className="hover:bg-transparent">
-                      <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-8">
-                        {time}
+                  {schedule.intervals.map((interval) => (
+                    <TableRow key={interval.start} className="hover:bg-transparent">
+                      <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-6 text-[10px] leading-tight px-1">
+                        {interval.label}
                       </TableCell>
-                      {schedule.studios.map((studio) => (
-                        <TableCell key={`${time}-${studio}`} className="p-2 border-r border-b last:border-r-0 min-h-[160px] align-top">
-                          {schedule.grid[time] && schedule.grid[time][studio] ? (
-                            <SlotCard 
-                              slot={schedule.grid[time][studio]} 
-                              existingBookings={getBookingsForStudio(studio)} 
-                            />
-                          ) : (
-                            <div className="h-full min-h-[140px] flex items-center justify-center text-xs text-muted-foreground/30 italic">
-                              Closed
-                            </div>
-                          )}
-                        </TableCell>
-                      ))}
+                      {schedule.studios.map((studio) => {
+                        const slot = schedule.grid[interval.start][studio];
+                        
+                        // Handle Rowspan logic for long bookings
+                        if (slot.isBooked) {
+                           const isStart = slot.startTime === interval.start;
+                           if (!isStart) return null; // Don't render for continuation rows
+
+                           const spanCount = schedule.intervals.filter(i => {
+                              const iStart = new Date(i.start).getTime();
+                              const iEnd = new Date(i.end).getTime();
+                              const bStart = new Date(slot.startTime).getTime();
+                              const bEnd = new Date(slot.endTime).getTime();
+                              return iStart >= bStart && iEnd <= bEnd;
+                           }).length;
+
+                           return (
+                             <TableCell key={`${interval.start}-${studio}`} rowSpan={spanCount} className="p-2 border-r border-b last:border-r-0 align-top bg-white">
+                                <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                             </TableCell>
+                           );
+                        }
+
+                        return (
+                          <TableCell key={`${interval.start}-${studio}`} className="p-2 border-r border-b last:border-r-0 align-top">
+                            <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   ))}
                 </TableBody>
