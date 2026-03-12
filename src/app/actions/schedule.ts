@@ -10,27 +10,37 @@ const CLASS_DURATION = 2; // Hours
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // 1. Extract ALL unique studios from the entire spreadsheet to ensure they always show up
-  // We scan the entire dataset for any value in a column that might be 'Studio'
+  if (allRows.length === 0) {
+    return {
+      date: format(targetDate, 'yyyy-MM-dd'),
+      studios: [],
+      timeSlots: [],
+      grid: {},
+    };
+  }
+
+  // 1. Identify key columns dynamically to handle variations in naming or spacing
+  const sampleRow = allRows[0];
+  const keys = Object.keys(sampleRow);
+  const studioKey = keys.find(k => k.toLowerCase().includes('studio')) || 'Studio';
+  const timeKey = keys.find(k => k.toLowerCase().includes('time')) || 'Scheduled Time';
+  const dateKey = keys.find(k => k.toLowerCase().includes('date')) || 'Date';
+
+  // 2. Extract ALL unique studios from the entire spreadsheet to ensure headers are constant
   const studiosInOrder: string[] = [];
   allRows.forEach(row => {
-    // Try to find the studio value, handling potential key variations
-    const sValue = row['Studio'] || row['STUDIO'] || row['studio'];
-    const s = String(sValue || '').trim();
+    const s = String(row[studioKey] || '').trim();
     if (s && s !== '' && !studiosInOrder.includes(s)) {
       studiosInOrder.push(s);
     }
   });
   const allStudios = studiosInOrder;
 
-  // 2. Extract ALL unique time slots from the entire spreadsheet to keep the grid consistent
+  // 3. Extract ALL unique time slots from the entire spreadsheet to keep the grid consistent
   const allTimeSlotStrings = Array.from(new Set(
     allRows
-      .map(row => {
-        const tValue = row['Scheduled Time'] || row['Time'] || row['TIME'];
-        return String(tValue || '').trim();
-      })
-      .filter(time => time !== '' && time !== 'Scheduled Time' && time !== 'Time')
+      .map(row => String(row[timeKey] || '').trim())
+      .filter(time => time !== '' && !time.toLowerCase().includes('time'))
   )).sort((a, b) => {
     try {
       const dateA = parse(a, 'h:mm a', new Date());
@@ -42,17 +52,17 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     }
   });
 
-  // 3. Parse bookings for the specific target date
+  // 4. Parse bookings for the specific target date
   const bookings: ClassBooking[] = allRows
     .filter((row) => {
-        const dateStr = String(row['Date'] || '').trim();
-        const timeStr = String(row['Scheduled Time'] || row['Time'] || '').trim();
+        const dateStr = String(row[dateKey] || '').trim();
+        const timeStr = String(row[timeKey] || '').trim();
         return dateStr !== '' && timeStr !== '';
     })
     .map((row) => {
-      const dateStr = String(row['Date']).trim();
-      const timeStr = String(row['Scheduled Time'] || row['Time']).trim();
-      const studioValue = String(row['Studio'] || row['STUDIO'] || 'Unknown').trim();
+      const dateStr = String(row[dateKey]).trim();
+      const timeStr = String(row[timeKey]).trim();
+      const studioValue = String(row[studioKey] || 'Unknown').trim();
       
       // Expected format: "Thursday, March 12, 2026"
       let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());

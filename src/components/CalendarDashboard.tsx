@@ -28,7 +28,7 @@ export function CalendarDashboard() {
       const data = await fetchDaySchedule(targetDate);
       setSchedule(data);
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load schedule:', e);
     } finally {
       setLoading(false);
     }
@@ -47,7 +47,7 @@ export function CalendarDashboard() {
     if (!schedule) return [];
     return schedule.timeSlots
       .map(time => schedule.grid[time][studio])
-      .filter(slot => slot.isBooked);
+      .filter(slot => slot && slot.isBooked);
   };
 
   return (
@@ -58,7 +58,7 @@ export function CalendarDashboard() {
             <CalendarIcon className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-headline font-bold tracking-tight text-[#403399]">
+            <h1 className="text-xl font-bold tracking-tight text-[#403399]">
               Studio TimeGrid
             </h1>
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Operations</p>
@@ -118,14 +118,14 @@ export function CalendarDashboard() {
         ) : schedule && schedule.studios.length > 0 ? (
           <div className="bg-white rounded-3xl border shadow-sm overflow-hidden h-full flex flex-col">
             <div className="overflow-auto flex-1">
-              <Table className="border-separate border-spacing-0">
+              <Table className="border-separate border-spacing-0 w-full min-w-max">
                 <TableHeader className="sticky top-0 z-20">
                   <TableRow className="bg-[#F8F9FD] hover:bg-[#F8F9FD]">
-                    <TableHead className="w-[120px] sticky left-0 z-30 bg-[#F8F9FD] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b">
+                    <TableHead className="w-[120px] min-w-[120px] sticky left-0 z-30 bg-[#F8F9FD] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b">
                       TIME
                     </TableHead>
                     {schedule.studios.map((studio) => (
-                      <TableHead key={studio} className="min-w-[280px] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b py-6 last:border-r-0">
+                      <TableHead key={studio} className="min-w-[280px] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b py-6 last:border-r-0 whitespace-nowrap px-4">
                         {studio}
                       </TableHead>
                     ))}
@@ -138,11 +138,17 @@ export function CalendarDashboard() {
                         {time}
                       </TableCell>
                       {schedule.studios.map((studio) => (
-                        <TableCell key={`${time}-${studio}`} className="p-2 border-r border-b last:border-r-0 min-h-[160px]">
-                          <SlotCard 
-                            slot={schedule.grid[time][studio]} 
-                            existingBookings={getBookingsForStudio(studio)} 
-                          />
+                        <TableCell key={`${time}-${studio}`} className="p-2 border-r border-b last:border-r-0 min-h-[160px] align-top">
+                          {schedule.grid[time] && schedule.grid[time][studio] ? (
+                            <SlotCard 
+                              slot={schedule.grid[time][studio]} 
+                              existingBookings={getBookingsForStudio(studio)} 
+                            />
+                          ) : (
+                            <div className="h-full min-h-[140px] flex items-center justify-center text-xs text-muted-foreground/30 italic">
+                              Closed
+                            </div>
+                          )}
                         </TableCell>
                       ))}
                     </TableRow>
@@ -157,9 +163,9 @@ export function CalendarDashboard() {
               <CalendarIcon className="w-10 h-10 text-muted-foreground" />
             </div>
             <div className="space-y-2">
-                <h3 className="text-xl font-headline font-bold text-foreground">No Classes Scheduled</h3>
+                <h3 className="text-xl font-bold text-foreground">No Studios Found</h3>
                 <p className="text-muted-foreground px-10">
-                    There are no studio bookings for {format(date, 'MMMM d, yyyy')}.
+                    We couldn't find any studio data in the spreadsheet for {format(date, 'MMMM d, yyyy')}.
                 </p>
             </div>
             <Button onClick={() => setDate(new Date())} variant="secondary" className="rounded-full mt-2">
