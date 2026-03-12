@@ -16,6 +16,11 @@ export function CalendarDashboard() {
   const [date, setDate] = useState<Date>(new Date());
   const [schedule, setSchedule] = useState<DaySchedule | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const loadData = async (targetDate: Date) => {
     setLoading(true);
@@ -30,8 +35,10 @@ export function CalendarDashboard() {
   };
 
   useEffect(() => {
-    loadData(date);
-  }, [date]);
+    if (isMounted) {
+      loadData(date);
+    }
+  }, [date, isMounted]);
 
   const nextDay = () => setDate(addDays(date, 1));
   const prevDay = () => setDate(subDays(date, 1));
@@ -65,7 +72,7 @@ export function CalendarDashboard() {
                   !date && "text-muted-foreground"
                 )}
               >
-                {format(date, 'EEEE, MMMM d, yyyy')}
+                {isMounted ? format(date, 'EEEE, MMMM d, yyyy') : 'Loading date...'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="center">
@@ -96,7 +103,7 @@ export function CalendarDashboard() {
       </header>
 
       <main className="flex-1 p-6 overflow-x-auto">
-        {loading ? (
+        {!isMounted || loading ? (
           <div className="h-full flex flex-col items-center justify-center gap-4 py-20">
             <div className="relative">
                 <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
