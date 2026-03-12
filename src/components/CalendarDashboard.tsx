@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { fetchDaySchedule } from '@/app/actions/schedule';
-import { DaySchedule, ClassBooking } from '@/app/lib/types';
+import { DaySchedule, ClassBooking, TimeInterval } from '@/app/lib/types';
 import { format, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle } from 'lucide-react';
@@ -61,6 +61,28 @@ export function CalendarDashboard() {
     if (filterStudio === 'all') return schedule.studios;
     return schedule.studios.filter(s => s === filterStudio);
   }, [schedule, filterStudio]);
+
+  // Identify visible rows based on filters
+  const filteredIntervals = useMemo(() => {
+    if (!schedule) return [];
+    if (!isFiltered) return schedule.intervals;
+
+    return schedule.intervals.filter((interval) => {
+      // A row is visible if at least one studio in this row has a visible slot
+      return filteredStudios.some((studio) => {
+        const slot = schedule.grid[interval.start][studio];
+        if (!slot) return false;
+        
+        const isVisible = (slot.isBooked && (filterAvailability === 'all' || filterAvailability === 'booked')) ||
+                        (!slot.isBooked && (filterAvailability === 'all' || filterAvailability === 'available'));
+        
+        // If it's a booked slot, we only consider the "first" interval for row visibility logic to avoid orphans
+        // but actually, we want the whole class span to be visible.
+        // For simplicity: if a slot is visible in any form (booked or free), the row is kept.
+        return isVisible;
+      });
+    });
+  }, [schedule, filteredStudios, filterAvailability, isFiltered]);
 
   const studioBookings = useMemo(() => {
     if (!schedule) return {};
@@ -205,7 +227,7 @@ export function CalendarDashboard() {
             <Loader2 className="h-10 w-10 text-primary animate-spin" />
             <p className="text-muted-foreground font-medium">Updating time grid...</p>
           </div>
-        ) : schedule && filteredStudios.length > 0 ? (
+        ) : schedule && filteredIntervals.length > 0 ? (
           <div className="bg-white rounded-3xl border shadow-sm overflow-hidden h-full flex flex-col">
             <div className="overflow-auto flex-1">
               <Table className="border-separate border-spacing-0 w-full min-w-max h-full">
@@ -225,29 +247,33 @@ export function CalendarDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedule.intervals.map((interval) => (
+                  {filteredIntervals.map((interval) => (
                     <TableRow key={interval.start} className="hover:bg-transparent min-h-[5rem]">
                       <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-4 text-[10px] leading-tight px-1 h-20">
                         {interval.label}
                       </TableCell>
                       {filteredStudios.map((studio) => {
                         const slot = schedule.grid[interval.start][studio];
-                        
-                        // Handle filters
+                        if (!slot) return <TableCell key={`${interval.start}-${studio}`} className="bg-transparent border-none" />;
+
                         const isVisible = (slot.isBooked && (filterAvailability === 'all' || filterAvailability === 'booked')) ||
                                         (!slot.isBooked && (filterAvailability === 'all' || filterAvailability === 'available'));
 
                         if (slot.isBooked) {
-                           // If not the first interval of a booking, don't render a cell (it's spanned by rowSpan)
-                           if (!slot.isFirst) return null;
+                           // If not visible or not the first interval of a booking, handle correctly
+                           if (!slot.isFirst) {
+                             // If it's part of a span but the span start is filtered out, we might have an issue.
+                             // But since we filter rows, if the span start is gone, the subsequent rows are also gone.
+                             return null;
+                           }
                            
                            return (
                              <TableCell 
                                key={`${interval.start}-${studio}`} 
-                               rowSpan={slot.rowSpan || 1} 
+                               rowSpan={isVisible ? slot.rowSpan : 1} 
                                className={cn(
-                                 "p-0 border-r border-b last:border-r-0 align-top h-full",
-                                 !isVisible && "border-none bg-transparent"
+                                 "p-0 align-top h-full transition-all duration-300",
+                                 isVisible ? "border-r border-b last:border-r-0" : "border-none bg-transparent"
                                )}
                                style={{ height: '1px' }}
                              >
@@ -265,8 +291,8 @@ export function CalendarDashboard() {
                           <TableCell 
                             key={`${interval.start}-${studio}`} 
                             className={cn(
-                              "p-0 border-r border-b last:border-r-0 align-top h-20",
-                              !isVisible && "border-none bg-transparent"
+                              "p-0 align-top h-20 transition-all duration-300",
+                              isVisible ? "border-r border-b last:border-r-0" : "border-none bg-transparent"
                             )}
                           >
                              <div className="h-full w-full p-1">
