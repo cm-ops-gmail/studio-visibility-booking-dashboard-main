@@ -129,14 +129,14 @@ export function CalendarDashboard() {
               <Table className="border-separate border-spacing-0 w-full min-w-max">
                 <TableHeader className="sticky top-0 z-20">
                   <TableRow className="bg-[#F8F9FD] hover:bg-[#F8F9FD]">
-                    <TableHead className="w-[140px] min-w-[140px] sticky left-0 z-30 bg-[#F8F9FD] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b">
+                    <TableHead className="w-[100px] min-w-[100px] sticky left-0 z-30 bg-[#F8F9FD] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b">
                       <div className="flex items-center justify-center gap-1">
                         <Clock className="w-3 h-3" />
                         TIME
                       </div>
                     </TableHead>
                     {schedule.studios.map((studio) => (
-                      <TableHead key={studio} className="min-w-[280px] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b py-6 last:border-r-0 whitespace-nowrap px-4">
+                      <TableHead key={studio} className="min-w-[240px] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b py-6 last:border-r-0 whitespace-nowrap px-4">
                         {studio}
                       </TableHead>
                     ))}
@@ -145,34 +145,46 @@ export function CalendarDashboard() {
                 <TableBody>
                   {schedule.intervals.map((interval) => (
                     <TableRow key={interval.start} className="hover:bg-transparent">
-                      <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-6 text-[10px] leading-tight px-1">
+                      <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-4 text-[10px] leading-tight px-1">
                         {interval.label}
                       </TableCell>
                       {schedule.studios.map((studio) => {
                         const slot = schedule.grid[interval.start][studio];
                         
-                        // Handle Rowspan logic for long bookings
+                        // Handle Rowspan logic for bookings
                         if (slot.isBooked) {
-                           const isStart = slot.startTime === interval.start;
-                           if (!isStart) return null; // Don't render for continuation rows
+                           // Find the first interval that this booking covers
+                           // We need to handle cases where a booking starts before 8 AM
+                           // or is just starting exactly at this interval.
+                           const isFirstVisibleIntervalForBooking = !schedule.intervals.some(prevI => {
+                              const prevStart = new Date(prevI.start).getTime();
+                              const currStart = new Date(interval.start).getTime();
+                              const bStart = new Date(slot.startTime).getTime();
+                              const bEnd = new Date(slot.endTime).getTime();
+                              return prevStart < currStart && prevStart >= bStart && prevStart < bEnd;
+                           });
+
+                           if (!isFirstVisibleIntervalForBooking) return null; // Don't render for continuation rows
 
                            const spanCount = schedule.intervals.filter(i => {
                               const iStart = new Date(i.start).getTime();
                               const iEnd = new Date(i.end).getTime();
                               const bStart = new Date(slot.startTime).getTime();
                               const bEnd = new Date(slot.endTime).getTime();
-                              return iStart >= bStart && iEnd <= bEnd;
+                              // Check if the 30-min interval midpoint is within the booking
+                              const mid = iStart + 15 * 60 * 1000;
+                              return mid >= bStart && mid < bEnd;
                            }).length;
 
                            return (
-                             <TableCell key={`${interval.start}-${studio}`} rowSpan={spanCount} className="p-2 border-r border-b last:border-r-0 align-top bg-white">
+                             <TableCell key={`${interval.start}-${studio}`} rowSpan={spanCount} className="p-1 border-r border-b last:border-r-0 align-top bg-white">
                                 <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
                              </TableCell>
                            );
                         }
 
                         return (
-                          <TableCell key={`${interval.start}-${studio}`} className="p-2 border-r border-b last:border-r-0 align-top">
+                          <TableCell key={`${interval.start}-${studio}`} className="p-1 border-r border-b last:border-r-0 align-top">
                             <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
                           </TableCell>
                         );

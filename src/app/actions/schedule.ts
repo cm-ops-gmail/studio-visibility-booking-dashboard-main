@@ -2,12 +2,13 @@
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isSameDay, isValid, compareAsc, setHours, setMinutes, isWithinInterval, addMinutes } from 'date-fns';
+import { parse, format, addHours, isSameDay, isValid, setHours, setMinutes, isWithinInterval, addMinutes } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
 const DAY_START_HOUR = 8;
 const DAY_END_HOUR = 23;
+const INTERVAL_MINUTES = 30;
 
 const ALLOWED_STUDIOS = [
   'Studio 1 - HQ1',
@@ -32,21 +33,18 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const dayStart = setMinutes(setHours(new Date(targetDate), DAY_START_HOUR), 0);
   const dayEnd = setMinutes(setHours(new Date(targetDate), DAY_END_HOUR), 0);
 
-  if (allRows.length === 0) {
-    return {
-      date: format(targetDate, 'yyyy-MM-dd'),
-      studios: ALLOWED_STUDIOS,
-      intervals: [],
-      grid: {},
-    };
-  }
-
   // 1. Identify key columns dynamically
-  const sampleRow = allRows[0];
-  const keys = Object.keys(sampleRow);
-  const studioKey = keys.find(k => k.toLowerCase().trim() === 'studio') || 'Studio';
-  const timeKey = keys.find(k => k.toLowerCase().includes('time')) || 'Scheduled Time';
-  const dateKey = keys.find(k => k.toLowerCase().includes('date')) || 'Date';
+  let studioKey = 'Studio';
+  let timeKey = 'Scheduled Time';
+  let dateKey = 'Date';
+
+  if (allRows.length > 0) {
+    const sampleRow = allRows[0];
+    const keys = Object.keys(sampleRow);
+    studioKey = keys.find(k => k.toLowerCase().trim() === 'studio') || 'Studio';
+    timeKey = keys.find(k => k.toLowerCase().includes('time')) || 'Scheduled Time';
+    dateKey = keys.find(k => k.toLowerCase().includes('date')) || 'Date';
+  }
 
   // 2. Parse all bookings for the target date
   const bookings: ClassBooking[] = allRows
@@ -59,11 +57,19 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
       const timeStr = String(row[timeKey] || '').trim();
       const studioValue = String(row[studioKey] || '').trim();
       
+      if (!dateStr || !timeStr) return null;
+
       let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
-      if (!isValid(parsedDay)) parsedDay = new Date(dateStr);
+      if (!isValid(parsedDay)) {
+        parsedDay = new Date(dateStr);
+      }
+      
+      if (!isValid(parsedDay)) return null;
 
       let startTime = parse(timeStr, 'h:mm a', parsedDay);
-      if (!isValid(startTime)) startTime = parsedDay;
+      if (!isValid(startTime)) {
+        startTime = parsedDay;
+      }
 
       const endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
@@ -81,32 +87,23 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
         isBooked: true,
       };
     })
-    .filter((b) => {
+    .filter((b): b is ClassBooking => {
+      if (!b) return false;
       const start = new Date(b.startTime);
       return isValid(start) && isSameDay(start, targetDate);
     });
 
-  // 3. Determine all critical time points (Day start/end + all booking starts/ends)
-  const timePointsSet = new Set<number>();
-  timePointsSet.add(dayStart.getTime());
-  timePointsSet.add(dayEnd.getTime());
-
-  bookings.forEach(b => {
-    const start = new Date(b.startTime).getTime();
-    const end = new Date(b.endTime).getTime();
-    if (start >= dayStart.getTime() && start <= dayEnd.getTime()) timePointsSet.add(start);
-    if (end >= dayStart.getTime() && end <= dayEnd.getTime()) timePointsSet.add(end);
-  });
-
-  const sortedPoints = Array.from(timePointsSet).sort((a, b) => a - b);
+  // 3. Generate fixed 30-minute intervals
   const intervals: TimeInterval[] = [];
-
-  for (let i = 0; i < sortedPoints.length - 1; i++) {
+  let current = new Date(dayStart);
+  while (current < dayEnd) {
+    const next = addMinutes(current, INTERVAL_MINUTES);
     intervals.push({
-      start: new Date(sortedPoints[i]).toISOString(),
-      end: new Date(sortedPoints[i+1]).toISOString(),
-      label: `${format(new Date(sortedPoints[i]), 'h:mm a')} - ${format(new Date(sortedPoints[i+1]), 'h:mm a')}`
+      start: current.toISOString(),
+      end: next.toISOString(),
+      label: format(current, 'h:mm a')
     });
+    current = next;
   }
 
   // 4. Construct the grid
@@ -118,13 +115,14 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     
     const intervalStart = new Date(interval.start);
     const intervalEnd = new Date(interval.end);
-    const midPoint = addMinutes(intervalStart, 1); // Point inside the interval to check coverage
+    const midPoint = addMinutes(intervalStart, 1); // Check a point inside the interval
 
     ALLOWED_STUDIOS.forEach((studio) => {
       const activeBooking = bookings.find(b => {
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
+        // Interval is covered if the midpoint of the 30-min slot is within the booking
         return isWithinInterval(midPoint, { start: bStart, end: bEnd });
       });
 
