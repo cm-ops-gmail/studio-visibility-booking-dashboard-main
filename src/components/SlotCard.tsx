@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Sparkles, Loader2, Info, BookOpen, Layers } from 'lucide-react';
+import { User, Sparkles, Loader2, Info, BookOpen, Layers, Clock } from 'lucide-react';
 import { getSmartSuggestion } from '@/app/actions/schedule';
 import { cn } from '@/lib/utils';
 
