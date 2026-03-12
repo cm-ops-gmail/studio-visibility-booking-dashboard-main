@@ -5,7 +5,7 @@ import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -48,6 +48,13 @@ export function CalendarDashboard() {
 
   const nextDay = () => setDate(addDays(date, 1));
   const prevDay = () => setDate(subDays(date, 1));
+
+  const clearFilters = () => {
+    setFilterStudio('all');
+    setFilterAvailability('all');
+  };
+
+  const isFiltered = filterStudio !== 'all' || filterAvailability !== 'all';
 
   const filteredStudios = useMemo(() => {
     if (!schedule) return [];
@@ -132,14 +139,14 @@ export function CalendarDashboard() {
       </header>
 
       {/* Filters Bar */}
-      <div className="px-6 py-4 bg-white/50 border-b flex flex-wrap items-center gap-6">
+      <div className="px-6 py-4 bg-white border-b flex flex-wrap items-center gap-6">
         <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                 <Layers className="w-3.5 h-3.5" />
                 Studio
             </div>
             <Select value={filterStudio} onValueChange={setFilterStudio}>
-                <SelectTrigger className="w-[200px] h-9 rounded-full bg-white border-primary/10">
+                <SelectTrigger className="w-[200px] h-9 rounded-full bg-white border-primary/20">
                     <SelectValue placeholder="All Studios" />
                 </SelectTrigger>
                 <SelectContent>
@@ -157,7 +164,7 @@ export function CalendarDashboard() {
                 Availability
             </div>
             <Select value={filterAvailability} onValueChange={setFilterAvailability}>
-                <SelectTrigger className="w-[160px] h-9 rounded-full bg-white border-primary/10">
+                <SelectTrigger className="w-[160px] h-9 rounded-full bg-white border-primary/20">
                     <SelectValue placeholder="All Slots" />
                 </SelectTrigger>
                 <SelectContent>
@@ -167,6 +174,18 @@ export function CalendarDashboard() {
                 </SelectContent>
             </Select>
         </div>
+
+        {isFiltered && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={clearFilters}
+            className="text-xs font-bold text-destructive hover:text-destructive hover:bg-destructive/5 gap-2 rounded-full px-4"
+          >
+            <XCircle className="w-4 h-4" />
+            Clear All
+          </Button>
+        )}
 
         <div className="ml-auto text-xs text-muted-foreground flex items-center gap-4">
             <div className="flex items-center gap-1.5">
@@ -215,8 +234,8 @@ export function CalendarDashboard() {
                         const slot = schedule.grid[interval.start][studio];
                         
                         // Handle filters
-                        const shouldShowBooked = filterAvailability === 'all' || filterAvailability === 'booked';
-                        const shouldShowAvailable = filterAvailability === 'all' || filterAvailability === 'available';
+                        const isVisible = (slot.isBooked && (filterAvailability === 'all' || filterAvailability === 'booked')) ||
+                                        (!slot.isBooked && (filterAvailability === 'all' || filterAvailability === 'available'));
 
                         if (slot.isBooked) {
                            // If not the first interval of a booking, don't render a cell (it's spanned by rowSpan)
@@ -226,17 +245,16 @@ export function CalendarDashboard() {
                              <TableCell 
                                key={`${interval.start}-${studio}`} 
                                rowSpan={slot.rowSpan || 1} 
-                               className="p-0 border-r border-b last:border-r-0 align-top bg-white h-full"
+                               className={cn(
+                                 "p-0 border-r border-b last:border-r-0 align-top h-full",
+                                 !isVisible && "border-none bg-transparent"
+                               )}
                                style={{ height: '1px' }}
                              >
                                 <div className="h-full w-full p-1 min-h-full">
-                                    {shouldShowBooked ? (
+                                    {isVisible ? (
                                         <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
-                                    ) : (
-                                        <div className="h-full w-full rounded-lg bg-muted/20 border border-dashed border-muted flex items-center justify-center">
-                                            <span className="text-[10px] font-medium text-muted-foreground/30">HIDDEN</span>
-                                        </div>
-                                    )}
+                                    ) : null}
                                 </div>
                              </TableCell>
                            );
@@ -246,14 +264,15 @@ export function CalendarDashboard() {
                         return (
                           <TableCell 
                             key={`${interval.start}-${studio}`} 
-                            className="p-0 border-r border-b last:border-r-0 align-top h-20"
+                            className={cn(
+                              "p-0 border-r border-b last:border-r-0 align-top h-20",
+                              !isVisible && "border-none bg-transparent"
+                            )}
                           >
                              <div className="h-full w-full p-1">
-                                {shouldShowAvailable ? (
+                                {isVisible ? (
                                     <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
-                                ) : (
-                                    <div className="h-full w-full rounded-lg bg-muted/10 border border-dashed border-muted/20" />
-                                )}
+                                ) : null}
                              </div>
                           </TableCell>
                         );
@@ -275,7 +294,7 @@ export function CalendarDashboard() {
                     We couldn't find any schedule data matching your filters for {format(date, 'MMMM d, yyyy')}.
                 </p>
             </div>
-            <Button onClick={() => { setFilterStudio('all'); setFilterAvailability('all'); }} variant="secondary" className="rounded-full mt-2">
+            <Button onClick={clearFilters} variant="secondary" className="rounded-full mt-2">
                 Reset Filters
             </Button>
           </div>
