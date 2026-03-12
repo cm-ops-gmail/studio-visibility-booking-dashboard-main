@@ -3,7 +3,7 @@
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule } from '@/app/lib/types';
-import { parse, format, addHours, isSameDay } from 'date-fns';
+import { parse, format, addHours, isSameDay, isValid } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION = 2; // Hours
@@ -18,15 +18,22 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     const dateStr = row['Date'];
     const timeStr = row['Scheduled Time'];
     
-    // Attempt to parse date from sheet (e.g. "March 12, 2024" or "2024-03-12")
-    let parsedDate;
-    try {
-      parsedDate = new Date(dateStr);
-    } catch (e) {
-      parsedDate = new Date();
+    // Explicitly parse the date format: "Thursday, March 12, 2026"
+    let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
+    
+    // Fallback if the format doesn't match exactly
+    if (!isValid(parsedDay)) {
+      parsedDay = new Date(dateStr);
     }
 
-    const startTime = parse(timeStr, 'h:mm a', parsedDate);
+    // Explicitly parse the time format: "5:45 AM"
+    let startTime = parse(timeStr, 'h:mm a', parsedDay);
+    
+    // Fallback for time
+    if (!isValid(startTime)) {
+       startTime = parsedDay;
+    }
+
     const endTime = addHours(startTime, CLASS_DURATION);
 
     return {
@@ -66,17 +73,18 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
 
     while (current < end) {
       const slotStartTimeStr = format(current, 'h:mm a');
-      const existing = studioBookings.find((b) => b.scheduledTime === slotStartTimeStr);
+      // Look for a booking that starts exactly at this time
+      const existing = studioBookings.find((b) => format(new Date(b.startTime), 'h:mm a') === slotStartTimeStr);
 
       if (existing) {
         studioSlots.push(existing);
-        current = addHours(new Date(existing.startTime), CLASS_DURATION);
+        current = new Date(existing.endTime);
       } else {
         const slotEnd = addHours(current, CLASS_DURATION);
         studioSlots.push({
           id: `free-${studio}-${slotStartTimeStr}`,
           studio,
-          date: format(targetDate, 'MMMM d, yyyy'),
+          date: format(targetDate, 'EEEE, MMMM d, yyyy'),
           scheduledTime: slotStartTimeStr,
           course: '',
           subject: '',
