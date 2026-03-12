@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
-import { format, addDays, subDays, parseISO } from 'date-fns';
+import { format, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
@@ -13,6 +13,7 @@ import { SlotCard } from '@/components/SlotCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export function CalendarDashboard() {
   const [date, setDate] = useState<Date | null>(null);
@@ -24,6 +25,8 @@ export function CalendarDashboard() {
   // Filter States
   const [filterStudio, setFilterStudio] = useState<string>('all');
   const [filterAvailability, setFilterAvailability] = useState<string>('all');
+
+  const dataframeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -135,30 +138,13 @@ export function CalendarDashboard() {
 
   const totalBookedCount = useMemo(() => {
     if (!summaryData?.bookedByStudio) return 0;
-    const items = Object.values(summaryData.bookedByStudio) as any[];
-    return items.reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
+    return Object.values(summaryData.bookedByStudio).reduce((acc, curr: any) => acc + (curr?.count || 0), 0);
   }, [summaryData]);
 
   const totalAvailableCount = useMemo(() => {
     if (!summaryData?.availableByStudio) return 0;
-    const items = Object.values(summaryData.availableByStudio) as any[];
-    return items.reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
+    return Object.values(summaryData.availableByStudio).reduce((acc, curr: any) => acc + (curr?.count || 0), 0);
   }, [summaryData]);
-
-  const studioBookings = useMemo(() => {
-    if (!schedule) return {};
-    const map: Record<string, ClassBooking[]> = {};
-    schedule.studios.forEach(studio => {
-      map[studio] = [];
-      schedule.intervals.forEach(interval => {
-        const booking = schedule.grid[interval.start]?.[studio];
-        if (booking && booking.isBooked && !map[studio].some(b => b.id === booking.id)) {
-          map[studio].push(booking);
-        }
-      });
-    });
-    return map;
-  }, [schedule]);
 
   const scrollToSlot = (intervalStart: string, studioName: string) => {
     const id = `slot-${intervalStart}-${studioName.replace(/\s+/g, '-')}`;
@@ -281,7 +267,7 @@ export function CalendarDashboard() {
                         </span>
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="p-0 overflow-hidden">
+                <CardContent className="p-0">
                     <div className="max-h-[400px] overflow-y-auto p-4 space-y-3 scrollbar-hide">
                         {filterStudio === 'all' ? (
                             Object.entries(summaryData.bookedByStudio || {})
@@ -326,7 +312,7 @@ export function CalendarDashboard() {
                         </span>
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="p-0 overflow-hidden">
+                <CardContent className="p-0">
                     <div className="max-h-[400px] overflow-y-auto p-4 space-y-3 scrollbar-hide">
                         {filterStudio === 'all' ? (
                             Object.entries(summaryData.availableByStudio || {})
@@ -366,7 +352,7 @@ export function CalendarDashboard() {
                 <p className="text-zinc-500 font-black text-[9px] tracking-[0.4em] uppercase">Refreshing Dataset</p>
               </div>
             ) : schedule && filteredIntervals.length > 0 ? (
-              <div className="flex-1 bg-zinc-900/30 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-auto scrollbar-hide relative">
+              <div ref={dataframeRef} className="flex-1 bg-zinc-900/30 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-auto scrollbar-hide relative">
                 <Table className="border-separate border-spacing-0 w-full min-w-max">
                   <TableHeader className="sticky top-0 z-[60] bg-zinc-950">
                     <TableRow className="bg-zinc-950 border-none">
@@ -406,14 +392,14 @@ export function CalendarDashboard() {
                              if (!slot.isFirst) return null;
                              return (
                                <TableCell id={cellId} key={`${interval.start}-${studio}`} rowSpan={slot.rowSpan || 1} className="p-1.5 align-top h-full border-r border-b border-zinc-900/30" style={{ height: '1px' }}>
-                                  <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                                  <SlotCard slot={slot} existingBookings={[]} />
                                </TableCell>
                              );
                           }
 
                           return (
                             <TableCell id={cellId} key={`${interval.start}-${studio}`} className="p-1.5 align-top h-full border-r border-b border-zinc-900/30">
-                              <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                              <SlotCard slot={slot} existingBookings={[]} />
                             </TableCell>
                           );
                         })}
@@ -439,3 +425,4 @@ export function CalendarDashboard() {
     </div>
   );
 }
+
