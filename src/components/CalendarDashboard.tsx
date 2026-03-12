@@ -5,12 +5,14 @@ import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function CalendarDashboard() {
   const [date, setDate] = useState<Date>(() => new Date());
@@ -64,7 +66,6 @@ export function CalendarDashboard() {
   const filteredIntervals = useMemo(() => {
     if (!schedule) return [];
     
-    // Get all intervals where at least one studio matches the filters
     const validIntervals = schedule.intervals.filter((interval) => {
       return filteredStudios.some((studio) => {
         const slot = schedule.grid[interval.start]?.[studio];
@@ -78,7 +79,6 @@ export function CalendarDashboard() {
       });
     });
 
-    // If "Booked Classes" is selected, we only want to show rows that actually contain a booking
     if (filterAvailability === 'booked') {
         return validIntervals.filter(interval => 
             filteredStudios.some(studio => schedule.grid[interval.start]?.[studio]?.isBooked)
@@ -87,6 +87,42 @@ export function CalendarDashboard() {
 
     return validIntervals;
   }, [schedule, filteredStudios, filterAvailability]);
+
+  const summaryData = useMemo(() => {
+    if (!schedule) return { booked: [], available: [] };
+    
+    const bookedSet = new Set<string>();
+    const bookedList: { studio: string; time: string; subject: string; id: string }[] = [];
+    const availableList: { studio: string; time: string; id: string }[] = [];
+
+    filteredIntervals.forEach(interval => {
+      filteredStudios.forEach(studio => {
+        const slot = schedule.grid[interval.start]?.[studio];
+        if (!slot) return;
+
+        if (slot.isBooked) {
+          if (!bookedSet.has(slot.id)) {
+            bookedSet.add(slot.id);
+            bookedList.push({
+              id: slot.id,
+              studio: slot.studio,
+              time: `${slot.startTimeLabel} - ${slot.endTimeLabel}`,
+              subject: slot.subject
+            });
+          }
+        } else {
+            // For available slots, we show the specific interval time
+            availableList.push({
+              id: slot.id,
+              studio: slot.studio,
+              time: slot.startTimeLabel || ''
+            });
+        }
+      });
+    });
+
+    return { booked: bookedList, available: availableList };
+  }, [schedule, filteredIntervals, filteredStudios]);
 
   const studioBookings = useMemo(() => {
     if (!schedule) return {};
@@ -223,6 +259,72 @@ export function CalendarDashboard() {
         </div>
       </div>
 
+      {/* Summary Cards */}
+      {!loading && schedule && (
+        <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-700">
+            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-red-500/20">
+                <CardHeader className="pb-2 border-b border-zinc-800 bg-red-500/5">
+                    <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-red-500" />
+                            Booked Slots
+                        </div>
+                        <span className="text-2xl text-red-500">{summaryData.booked.length}</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <ScrollArea className="h-[120px]">
+                        <div className="p-4 space-y-3">
+                            {summaryData.booked.length > 0 ? (
+                                summaryData.booked.map((b) => (
+                                    <div key={b.id} className="flex flex-col border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-white uppercase tracking-tight">{b.subject}</span>
+                                            <span className="text-[10px] font-black text-zinc-400">{b.time}</span>
+                                        </div>
+                                        <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">{b.studio}</span>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No bookings matched</p>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+
+            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-emerald-500/20">
+                <CardHeader className="pb-2 border-b border-zinc-800 bg-emerald-500/5">
+                    <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                            <CircleDashed className="w-4 h-4 text-emerald-500" />
+                            Available Slots
+                        </div>
+                        <span className="text-2xl text-emerald-500">{summaryData.available.length}</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <ScrollArea className="h-[120px]">
+                        <div className="p-4 grid grid-cols-2 gap-3">
+                            {summaryData.available.length > 0 ? (
+                                summaryData.available.map((a, i) => (
+                                    <div key={`${a.id}-${i}`} className="flex items-center justify-between bg-zinc-950/50 p-2 rounded-lg border border-zinc-800">
+                                        <div className="flex flex-col">
+                                            <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none mb-1">{a.studio}</span>
+                                            <span className="text-[9px] font-black text-emerald-500">{a.time}</span>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-[9px] text-zinc-500 font-black text-center py-8 col-span-2 uppercase tracking-[0.2em]">No slots available</p>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+        </div>
+      )}
+
       <main className="flex-1 p-6 overflow-hidden flex flex-col bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.03),transparent)]">
         {!isMounted || loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-6">
@@ -306,7 +408,7 @@ export function CalendarDashboard() {
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-center gap-8 bg-zinc-900/10 border border-zinc-900 rounded-[3rem] max-w-2xl mx-auto w-full backdrop-blur-sm animate-in zoom-in-95 duration-500">
             <div className="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-[2rem] flex items-center justify-center shadow-2xl relative">
               <div className="absolute inset-0 bg-orange-600/5 blur-2xl rounded-full" />
-              <CalendarIcon className="w-10 h-10 text-zinc-800 relative z-10" />
+              <CalendarDays className="w-10 h-10 text-zinc-800 relative z-10" />
             </div>
             <div className="space-y-3">
                 <h3 className="text-2xl font-black text-white tracking-tight">GRID IS EMPTY</h3>
