@@ -3,11 +3,9 @@
 import { useState } from 'react';
 import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/badge';
 import { Badge } from '@/components/ui/badge';
 import { User, Sparkles, Loader2 } from 'lucide-react';
 import { getSmartSuggestion } from '@/app/actions/schedule';
-import { format } from 'date-fns';
 
 interface SlotCardProps {
   slot: ClassBooking;
@@ -30,10 +28,9 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
     }
   };
 
-  // Use pre-formatted labels from server to avoid client-side timezone shifts
   const timeRangeLabel = slot.startTimeLabel && slot.endTimeLabel 
     ? `${slot.startTimeLabel} - ${slot.endTimeLabel}`
-    : `${format(new Date(slot.startTime), 'h:mm a')} - ${format(new Date(slot.endTime), 'h:mm a')}`;
+    : '';
 
   if (slot.isBooked) {
     return (
@@ -44,16 +41,20 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
               <Badge variant="outline" className="text-[8px] font-extrabold uppercase tracking-widest text-[#403399] border-[#403399]/10 bg-[#403399]/5 px-2 py-0">
                 {slot.course || 'GENERAL'}
               </Badge>
-              <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap">
-                {timeRangeLabel}
-              </span>
+              {timeRangeLabel && (
+                <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap">
+                  {timeRangeLabel}
+                </span>
+              )}
             </div>
             <h3 className="font-headline font-bold text-sm leading-tight text-foreground line-clamp-2">
               {slot.subject}
             </h3>
-            <p className="text-[10px] text-muted-foreground line-clamp-1 italic">
-              {slot.topic}
-            </p>
+            {slot.topic && (
+              <p className="text-[10px] text-muted-foreground line-clamp-1 italic">
+                {slot.topic}
+              </p>
+            )}
           </div>
           
           <div className="flex items-center gap-2 mt-auto pt-2 border-t border-border/30">

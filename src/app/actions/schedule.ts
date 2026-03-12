@@ -2,7 +2,7 @@
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, isWithinInterval, addMinutes } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, isWithinInterval, addMinutes, startOfDay } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
@@ -28,17 +28,35 @@ const ALLOWED_STUDIOS = [
   'Rescheduled',
 ];
 
+/**
+ * Normalizes studio names for matching. 
+ * "Studio 1" in sheet should match "Studio 1 - HQ1" in our allowed list.
+ */
+function normalizeStudio(name: string): string {
+  const s = String(name || '').trim().toLowerCase();
+  if (!s) return '';
+  // Special case for Green Room and Rescheduled
+  if (s.includes('green room')) return 'Green Room';
+  if (s.includes('rescheduled')) return 'Rescheduled';
+  // Standard studio match: find the first allowed studio that contains this name as a prefix
+  const match = ALLOWED_STUDIOS.find(allowed => 
+    allowed.toLowerCase() === s || allowed.toLowerCase().startsWith(s + ' -')
+  );
+  return match || name;
+}
+
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // Use YYYY-MM-DD for comparison to avoid timezone issues during filtering
+  // Use YYYY-MM-DD string for all comparisons to avoid timezone issues
+  // We use the date as a "logical" date, ignoring the time part of the incoming object
   const targetDateStr = format(targetDate, 'yyyy-MM-dd');
   
-  // These are used for grid generation on the server (server-local time)
-  const dayStart = setMinutes(setHours(new Date(targetDate), DAY_START_HOUR), 0);
-  const dayEnd = setMinutes(setHours(new Date(targetDate), DAY_END_HOUR), 0);
+  // Create a local reference date for this day at 00:00:00
+  // This helps in consistent time parsing
+  const referenceDay = startOfDay(targetDate);
 
-  // 1. Identify key columns with higher precision
+  // 1. Precise Column Mapping
   let studioKey = 'Studio';
   let timeKey = 'Scheduled Time';
   let dateKey = 'Date';
@@ -49,68 +67,72 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
 
   if (allRows.length > 0) {
     const sampleRow = allRows[0];
-    const keys = Object.keys(sampleRow).map(k => k.trim());
+    const keys = Object.keys(sampleRow);
     
-    // Helper for finding exact or close matches without loose substring pollution
-    const findKey = (search: string, fallback: string) => {
-        const exact = keys.find(k => k.toLowerCase() === search.toLowerCase());
+    const findExactOrClose = (searches: string[], fallback: string) => {
+      for (const s of searches) {
+        const exact = keys.find(k => k.trim().toLowerCase() === s.toLowerCase());
         if (exact) return exact;
-        return keys.find(k => k.toLowerCase().includes(search.toLowerCase())) || fallback;
+      }
+      for (const s of searches) {
+        const partial = keys.find(k => k.trim().toLowerCase().includes(s.toLowerCase()));
+        if (partial) return partial;
+      }
+      return fallback;
     };
 
-    studioKey = findKey('Studio', 'Studio');
-    timeKey = findKey('Scheduled Time', 'Scheduled Time');
-    dateKey = findKey('Date', 'Date');
-    teacherKey = keys.find(k => k === 'Teacher 1') || findKey('Teacher 1', 'Teacher 1');
-    courseKey = findKey('Course', 'Course');
-    subjectKey = findKey('Subject', 'Subject');
-    topicKey = findKey('Topic', 'Topic');
+    studioKey = findExactOrClose(['Studio'], 'Studio');
+    timeKey = findExactOrClose(['Scheduled Time', 'Time'], 'Scheduled Time');
+    dateKey = findExactOrClose(['Date'], 'Date');
+    teacherKey = findExactOrClose(['Teacher 1', 'Teacher'], 'Teacher 1');
+    courseKey = findExactOrClose(['Course'], 'Course');
+    subjectKey = findExactOrClose(['Subject'], 'Subject');
+    topicKey = findExactOrClose(['Topic'], 'Topic');
   }
 
-  // 2. Parse all bookings for the target date
+  // 2. Parse Bookings with high accuracy
   const bookings: ClassBooking[] = allRows
-    .filter((row) => {
-        const studioVal = String(row[studioKey] || '').trim();
-        return ALLOWED_STUDIOS.includes(studioVal);
-    })
     .map((row) => {
-      const dateStr = String(row[dateKey] || '').trim();
-      const timeStr = String(row[timeKey] || '').trim();
-      const studioValue = String(row[studioKey] || '').trim();
+      const dateVal = String(row[dateKey] || '').trim();
+      const timeVal = String(row[timeKey] || '').trim();
+      const studioRaw = String(row[studioKey] || '').trim();
       
-      if (!dateStr || !timeStr) return null;
+      if (!dateVal || !timeVal || !studioRaw) return null;
 
-      // Explicitly parse the date format: "Thursday, March 12, 2026"
-      let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
+      // Filter by Date String immediately
+      // Dates usually look like "Friday, March 13, 2026"
+      let parsedDay = parse(dateVal, 'EEEE, MMMM d, yyyy', new Date());
       if (!isValid(parsedDay)) {
-        parsedDay = new Date(dateStr);
+        parsedDay = new Date(dateVal);
       }
-      
       if (!isValid(parsedDay)) return null;
 
-      // Check if this row matches the target date using YYYY-MM-DD
       const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
       if (rowDateStr !== targetDateStr) return null;
 
-      let startTime = parse(timeStr, 'h:mm a', parsedDay);
+      // Normalize Studio Name
+      const studioMatch = normalizeStudio(studioRaw);
+      if (!ALLOWED_STUDIOS.includes(studioMatch)) return null;
+
+      // Parse Time relative to our reference day to keep it "logical" (floating)
+      let startTime = parse(timeVal, 'h:mm a', referenceDay);
       if (!isValid(startTime)) {
-        startTime = parsedDay;
+        startTime = referenceDay;
       }
 
       const endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
       return {
-        id: row.id,
-        studio: studioValue,
-        date: dateStr,
-        scheduledTime: timeStr,
+        id: row.id || `row-${Math.random()}`,
+        studio: studioMatch,
+        date: dateVal,
+        scheduledTime: timeVal,
         course: String(row[courseKey] || '').trim(),
         subject: String(row[subjectKey] || '').trim(),
         topic: String(row[topicKey] || '').trim(),
         teacher: String(row[teacherKey] || '').trim(),
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
-        // Add pre-formatted strings to avoid client-side timezone shifts
         startTimeLabel: format(startTime, 'h:mm a'),
         endTimeLabel: format(endTime, 'h:mm a'),
         isBooked: true,
@@ -118,8 +140,11 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     })
     .filter((b): b is ClassBooking => b !== null);
 
-  // 3. Generate fixed 30-minute intervals
+  // 3. Generate 30-minute intervals for the grid
   const intervals: TimeInterval[] = [];
+  const dayStart = setMinutes(setHours(referenceDay, DAY_START_HOUR), 0);
+  const dayEnd = setMinutes(setHours(referenceDay, DAY_END_HOUR), 0);
+
   let current = new Date(dayStart);
   while (current <= dayEnd) {
     const next = addMinutes(current, INTERVAL_MINUTES);
@@ -131,17 +156,16 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     current = next;
   }
 
-  // 4. Construct the grid
+  // 4. Construct the Grid
   const grid: Record<string, Record<string, ClassBooking>> = {};
 
   intervals.forEach((interval) => {
-    const intervalKey = interval.start;
-    grid[intervalKey] = {};
-    
+    grid[interval.start] = {};
     const intervalStart = new Date(interval.start);
     const midPoint = addMinutes(intervalStart, 1);
 
     ALLOWED_STUDIOS.forEach((studio) => {
+      // Find a booking that covers this interval for this studio
       const activeBooking = bookings.find(b => {
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
@@ -150,12 +174,12 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
       });
 
       if (activeBooking) {
-        grid[intervalKey][studio] = activeBooking;
+        grid[interval.start][studio] = activeBooking;
       } else {
-        grid[intervalKey][studio] = {
+        grid[interval.start][studio] = {
           id: `free-${studio}-${interval.start}`,
           studio,
-          date: format(targetDate, 'EEEE, MMMM d, yyyy'),
+          date: format(referenceDay, 'EEEE, MMMM d, yyyy'),
           scheduledTime: format(intervalStart, 'h:mm a'),
           course: '',
           subject: '',
