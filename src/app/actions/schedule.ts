@@ -2,7 +2,7 @@
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, isWithinInterval, addMinutes } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
@@ -43,7 +43,7 @@ function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
-    const monthDay = parts[1]; // "March 13"
+    const monthDay = parts[1];
     const year = parts[2] || new Date().getFullYear().toString();
     const d = parse(`${monthDay} ${year}`, 'MMMM d yyyy', new Date());
     if (isValid(d)) return d;
@@ -99,7 +99,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
       return {
-        id: `row-${index}`, // Stable ID based on spreadsheet row
+        id: `row-${index}-${studioMatch}`,
         studio: studioMatch,
         date: dateVal,
         scheduledTime: timeVal,
@@ -150,7 +150,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         const bStart = new Date(activeBooking.startTime);
         const bEnd = new Date(activeBooking.endTime);
         
-        // Strictly check if the SAME booking exists in the previous interval
         const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
         const prevMidPoint = addMinutes(prevIntervalStart, 1);
         const overlapsWithSameBooking = prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart;

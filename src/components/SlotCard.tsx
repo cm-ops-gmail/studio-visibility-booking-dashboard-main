@@ -73,7 +73,7 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
   return (
     <Card className="h-full min-h-full border-dashed border-2 bg-[#F8F9FD]/50 flex flex-col items-center justify-center p-3 hover:bg-[#F8F9FD] transition-colors group">
       <div className="text-center space-y-2">
-        <p className="text-[9px] font-bold text-[#5C6B89] group-hover:text-[#403399] transition-colors px-2 uppercase tracking-widest">
+        <p className="text-[10px] font-bold text-[#5C6B89] group-hover:text-[#403399] transition-colors px-2 uppercase tracking-widest">
           {suggestion || "AVAILABLE"}
         </p>
         
@@ -81,12 +81,12 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
           <button 
             onClick={handleSuggest} 
             disabled={loading}
-            className="rounded-full h-6 text-[8px] bg-white hover:bg-[#403399] hover:text-white transition-all border border-[#403399]/20 shadow-sm px-2 flex items-center justify-center gap-1 disabled:opacity-50"
+            className="rounded-full h-7 text-[8px] bg-white hover:bg-[#403399] hover:text-white transition-all border border-[#403399]/20 shadow-sm px-3 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 disabled:opacity-50"
           >
             {loading ? (
-              <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" />
+              <Loader2 className="w-3 h-3 animate-spin text-[#403399]" />
             ) : (
-              <Sparkles className="w-2.5 h-2.5 mr-1 text-[#82A2ED]" />
+              <Sparkles className="w-3 h-3 text-[#82A2ED]" />
             )}
             Smart Idea
           </button>

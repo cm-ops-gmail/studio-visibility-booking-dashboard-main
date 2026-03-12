@@ -160,14 +160,18 @@ export function CalendarDashboard() {
                                rowSpan={slot.rowSpan || 1} 
                                className="p-1 border-r border-b last:border-r-0 align-top bg-white"
                              >
-                                <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                                <div className="h-full w-full">
+                                    <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                                </div>
                              </TableCell>
                            );
                         }
 
                         return (
                           <TableCell key={`${interval.start}-${studio}`} className="p-1 border-r border-b last:border-r-0 align-top h-20">
-                            <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                             <div className="h-full w-full">
+                                <SlotCard slot={slot} existingBookings={studioBookings[studio] || []} />
+                             </div>
                           </TableCell>
                         );
                       })}
