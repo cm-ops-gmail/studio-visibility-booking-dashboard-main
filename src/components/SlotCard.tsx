@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/badge';
 import { Badge } from '@/components/ui/badge';
 import { User, Sparkles, Loader2 } from 'lucide-react';
 import { getSmartSuggestion } from '@/app/actions/schedule';
@@ -30,7 +30,10 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
     }
   };
 
-  const timeRangeLabel = `${format(new Date(slot.startTime), 'h:mm')} - ${format(new Date(slot.endTime), 'h:mm a')}`;
+  // Use pre-formatted labels from server to avoid client-side timezone shifts
+  const timeRangeLabel = slot.startTimeLabel && slot.endTimeLabel 
+    ? `${slot.startTimeLabel} - ${slot.endTimeLabel}`
+    : `${format(new Date(slot.startTime), 'h:mm a')} - ${format(new Date(slot.endTime), 'h:mm a')}`;
 
   if (slot.isBooked) {
     return (
@@ -74,12 +77,10 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
         </p>
         
         {!suggestion && (
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <button 
             onClick={handleSuggest} 
             disabled={loading}
-            className="rounded-full h-6 text-[8px] bg-white hover:bg-[#403399] hover:text-white transition-all border-[#403399]/20 shadow-sm px-2"
+            className="rounded-full h-6 text-[8px] bg-white hover:bg-[#403399] hover:text-white transition-all border border-[#403399]/20 shadow-sm px-2 flex items-center justify-center gap-1 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" />
@@ -87,7 +88,7 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
               <Sparkles className="w-2.5 h-2.5 mr-1 text-[#82A2ED]" />
             )}
             Smart Idea
-          </Button>
+          </button>
         )}
       </div>
     </Card>

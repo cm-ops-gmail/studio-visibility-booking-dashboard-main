@@ -31,13 +31,14 @@ const ALLOWED_STUDIOS = [
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // Use YYYY-MM-DD for comparison to avoid timezone issues
+  // Use YYYY-MM-DD for comparison to avoid timezone issues during filtering
   const targetDateStr = format(targetDate, 'yyyy-MM-dd');
   
+  // These are used for grid generation on the server (server-local time)
   const dayStart = setMinutes(setHours(new Date(targetDate), DAY_START_HOUR), 0);
   const dayEnd = setMinutes(setHours(new Date(targetDate), DAY_END_HOUR), 0);
 
-  // 1. Identify key columns dynamically to handle variations in the Google Sheet
+  // 1. Identify key columns with higher precision
   let studioKey = 'Studio';
   let timeKey = 'Scheduled Time';
   let dateKey = 'Date';
@@ -48,14 +49,22 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
 
   if (allRows.length > 0) {
     const sampleRow = allRows[0];
-    const keys = Object.keys(sampleRow);
-    studioKey = keys.find(k => k.toLowerCase().trim() === 'studio') || 'Studio';
-    timeKey = keys.find(k => k.toLowerCase().includes('time')) || 'Scheduled Time';
-    dateKey = keys.find(k => k.toLowerCase().includes('date')) || 'Date';
-    teacherKey = keys.find(k => k.toLowerCase().includes('teacher 1')) || keys.find(k => k.toLowerCase().includes('teacher')) || 'Teacher 1';
-    courseKey = keys.find(k => k.toLowerCase().includes('course')) || 'Course';
-    subjectKey = keys.find(k => k.toLowerCase().includes('subject')) || 'Subject';
-    topicKey = keys.find(k => k.toLowerCase().includes('topic')) || 'Topic';
+    const keys = Object.keys(sampleRow).map(k => k.trim());
+    
+    // Helper for finding exact or close matches without loose substring pollution
+    const findKey = (search: string, fallback: string) => {
+        const exact = keys.find(k => k.toLowerCase() === search.toLowerCase());
+        if (exact) return exact;
+        return keys.find(k => k.toLowerCase().includes(search.toLowerCase())) || fallback;
+    };
+
+    studioKey = findKey('Studio', 'Studio');
+    timeKey = findKey('Scheduled Time', 'Scheduled Time');
+    dateKey = findKey('Date', 'Date');
+    teacherKey = keys.find(k => k === 'Teacher 1') || findKey('Teacher 1', 'Teacher 1');
+    courseKey = findKey('Course', 'Course');
+    subjectKey = findKey('Subject', 'Subject');
+    topicKey = findKey('Topic', 'Topic');
   }
 
   // 2. Parse all bookings for the target date
@@ -95,12 +104,15 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
         studio: studioValue,
         date: dateStr,
         scheduledTime: timeStr,
-        course: row[courseKey] || '',
-        subject: row[subjectKey] || '',
-        topic: row[topicKey] || '',
-        teacher: row[teacherKey] || '',
+        course: String(row[courseKey] || '').trim(),
+        subject: String(row[subjectKey] || '').trim(),
+        topic: String(row[topicKey] || '').trim(),
+        teacher: String(row[teacherKey] || '').trim(),
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
+        // Add pre-formatted strings to avoid client-side timezone shifts
+        startTimeLabel: format(startTime, 'h:mm a'),
+        endTimeLabel: format(endTime, 'h:mm a'),
         isBooked: true,
       };
     })
@@ -151,6 +163,8 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
           teacher: '',
           startTime: interval.start,
           endTime: interval.end,
+          startTimeLabel: format(intervalStart, 'h:mm a'),
+          endTimeLabel: format(addMinutes(intervalStart, 30), 'h:mm a'),
           isBooked: false,
         };
       }
@@ -169,13 +183,13 @@ export async function getSmartSuggestion(booking: ClassBooking, existingBookings
     return await suggestSmartSlotDescription({
         studioName: booking.studio,
         date: booking.date,
-        availableSlotStartTime: format(new Date(booking.startTime), 'h:mm a'),
-        availableSlotEndTime: format(new Date(booking.endTime), 'h:mm a'),
+        availableSlotStartTime: booking.startTimeLabel || format(new Date(booking.startTime), 'h:mm a'),
+        availableSlotEndTime: booking.endTimeLabel || format(new Date(booking.endTime), 'h:mm a'),
         existingBookings: existingBookings.map(b => ({
             subject: b.subject,
             teacher: b.teacher,
-            startTime: format(new Date(b.startTime), 'h:mm a'),
-            endTime: format(new Date(b.endTime), 'h:mm a')
+            startTime: b.startTimeLabel || format(new Date(b.startTime), 'h:mm a'),
+            endTime: b.endTimeLabel || format(new Date(b.endTime), 'h:mm a')
         }))
     });
 }

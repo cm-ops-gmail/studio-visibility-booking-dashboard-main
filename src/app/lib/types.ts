@@ -10,6 +10,8 @@ export interface ClassBooking {
   teacher: string;
   startTime: string; // ISO
   endTime: string;   // ISO
+  startTimeLabel?: string; // Pre-formatted for display
+  endTimeLabel?: string;   // Pre-formatted for display
   isBooked: boolean;
   suggestedDescription?: string;
 }
