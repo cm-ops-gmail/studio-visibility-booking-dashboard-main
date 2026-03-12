@@ -1,8 +1,9 @@
+
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes, differenceInMinutes } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
@@ -52,13 +53,22 @@ function parseSheetDate(dateStr: string): Date | null {
   return isValid(d) ? d : null;
 }
 
+function parseTime(timeStr: string, referenceDay: Date): Date | null {
+    if (!timeStr) return null;
+    let t = parse(timeStr.trim(), 'h:mm a', referenceDay);
+    if (!isValid(t)) {
+        t = parse(timeStr.trim(), 'HH:mm', referenceDay);
+    }
+    return isValid(t) ? t : null;
+}
+
 export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedule> {
   const allRows = await getSheetData();
   const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
 
   let studioKey = 'Studio', timeKey = 'Scheduled Time', dateKey = 'Date', 
       teacherKey = 'Teacher 1', courseKey = 'Course', subjectKey = 'Subject', topicKey = 'Topic',
-      productTypeKey = 'Product Type';
+      productTypeKey = 'Product Type', entryTimeKey = 'Entry Time [T-45min/T-30min]';
 
   if (allRows.length > 0) {
     const keys = Object.keys(allRows[0]);
@@ -73,6 +83,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     subjectKey = findKey(['Subject', 'Subject Name']);
     topicKey = findKey(['Topic', 'Lesson Topic']);
     productTypeKey = findKey(['Product Type', 'Type']);
+    entryTimeKey = findKey(['Entry Time [T-45min/T-30min]', 'Entry Time']);
   }
 
   const bookings: ClassBooking[] = allRows
@@ -80,6 +91,8 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const dateVal = String(row[dateKey] || '').trim();
       const timeVal = String(row[timeKey] || '').trim();
       const studioRaw = String(row[studioKey] || '').trim();
+      const productType = String(row[productTypeKey] || '').trim();
+      const entryTimeVal = String(row[entryTimeKey] || '').trim();
       
       if (!dateVal || !timeVal || !studioRaw) return null;
 
@@ -92,13 +105,22 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const studioMatch = normalizeStudio(studioRaw);
       if (!ALLOWED_STUDIOS.includes(studioMatch)) return null;
 
-      let startTime = parse(timeVal, 'h:mm a', referenceDay);
-      if (!isValid(startTime)) {
-        startTime = parse(timeVal, 'HH:mm', referenceDay);
-      }
-      if (!isValid(startTime)) return null;
+      const startTime = parseTime(timeVal, referenceDay);
+      if (!startTime) return null;
 
-      const endTime = addHours(startTime, CLASS_DURATION_HOURS);
+      let endTime: Date | null = null;
+      if (productType === 'Studio Booking' && entryTimeVal) {
+          endTime = parseTime(entryTimeVal, referenceDay);
+      } else {
+          endTime = addHours(startTime, CLASS_DURATION_HOURS);
+      }
+
+      if (!endTime) return null;
+
+      const durationMinutes = Math.abs(differenceInMinutes(endTime, startTime));
+      const hours = Math.floor(durationMinutes / 60);
+      const mins = durationMinutes % 60;
+      const durationLabel = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
       return {
         id: `row-${index}`, 
@@ -109,11 +131,12 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         subject: String(row[subjectKey] || '').trim(),
         topic: String(row[topicKey] || '').trim(),
         teacher: String(row[teacherKey] || '').trim(),
-        productType: String(row[productTypeKey] || '').trim(),
+        productType: productType,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         startTimeLabel: format(startTime, 'h:mm a'),
         endTimeLabel: format(endTime, 'h:mm a'),
+        durationLabel: durationLabel,
         isBooked: true,
       };
     })
@@ -146,23 +169,30 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
-        return midPoint >= bStart && midPoint < bEnd;
+        
+        // Handle potentially reversed times if data is inconsistent
+        const actualStart = bStart < bEnd ? bStart : bEnd;
+        const actualEnd = bStart < bEnd ? bEnd : bStart;
+
+        return midPoint >= actualStart && midPoint < actualEnd;
       });
 
       if (activeBooking) {
         const bStart = new Date(activeBooking.startTime);
         const bEnd = new Date(activeBooking.endTime);
+        const actualStart = bStart < bEnd ? bStart : bEnd;
+        const actualEnd = bStart < bEnd ? bEnd : bStart;
         
         const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
         const prevMidPoint = addMinutes(prevIntervalStart, 1);
-        const isFirst = !(prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart);
+        const isFirst = !(prevMidPoint >= actualStart && prevMidPoint < actualEnd && prevIntervalStart >= dayStart);
 
         let rowSpan = 1;
         if (isFirst) {
             let scan = addMinutes(intervalStart, INTERVAL_MINUTES);
             while (scan <= dayEnd) {
                 const scanMid = addMinutes(scan, 1);
-                if (scanMid >= bStart && scanMid < bEnd) {
+                if (scanMid >= actualStart && scanMid < actualEnd) {
                     rowSpan++;
                 } else {
                     break;

@@ -8,11 +8,12 @@ export interface ClassBooking {
   subject: string;
   topic: string;
   teacher: string;
-  productType: string; // New field
+  productType: string; 
   startTime: string; // ISO
   endTime: string;   // ISO
   startTimeLabel?: string; // Pre-formatted for display
   endTimeLabel?: string;   // Pre-formatted for display
+  durationLabel?: string;  // e.g., "1h 30m"
   isBooked: boolean;
   suggestedDescription?: string;
   rowSpan?: number; // Calculated intervals to span

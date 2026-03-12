@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ClassBooking } from '@/app/lib/types';
@@ -28,6 +29,11 @@ export function SlotCard({ slot }: SlotCardProps) {
                  <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.1em] text-white border-red-500/40 bg-red-500/10 px-2 py-0.5 rounded-md">
                    {slot.productType || 'CLASS'}
                  </Badge>
+                 {slot.durationLabel && (
+                    <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.1em] text-white border-white/20 bg-white/5 px-2 py-0.5 rounded-md">
+                      {slot.durationLabel}
+                    </Badge>
+                 )}
                  <span className="text-[8px] font-black uppercase tracking-widest text-white/40">
                    {slot.course}
                  </span>
