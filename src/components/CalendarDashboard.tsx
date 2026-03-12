@@ -134,12 +134,16 @@ export function CalendarDashboard() {
 
   const totalBookedCount = useMemo(() => {
     if (!summaryData?.bookedByStudio) return 0;
-    return Object.values(summaryData.bookedByStudio).reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
+    const studios = Object.values(summaryData.bookedByStudio);
+    if (!studios.length) return 0;
+    return studios.reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
   }, [summaryData]);
 
   const totalAvailableCount = useMemo(() => {
     if (!summaryData?.availableByStudio) return 0;
-    return Object.values(summaryData.availableByStudio).reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
+    const studios = Object.values(summaryData.availableByStudio);
+    if (!studios.length) return 0;
+    return studios.reduce((acc: number, curr: any) => acc + (curr?.count || 0), 0);
   }, [summaryData]);
 
   const studioBookings = useMemo(() => {
@@ -172,35 +176,37 @@ export function CalendarDashboard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 shadow-inner">
-          <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                className="px-6 h-8 font-black text-xs text-white hover:bg-zinc-800 rounded-lg transition-all tracking-widest"
-              >
-                {formattedDateLabel}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl" align="center">
-              <Calendar
-                mode="single"
-                selected={date || undefined}
-                onSelect={(d) => d && setDate(d)}
-                initialFocus
-                className="bg-zinc-900 text-white"
-              />
-            </PopoverContent>
-          </Popover>
+        {isMounted && (
+          <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 shadow-inner">
+            <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="px-6 h-8 font-black text-xs text-white hover:bg-zinc-800 rounded-lg transition-all tracking-widest uppercase"
+                >
+                  {formattedDateLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl" align="center">
+                <Calendar
+                  mode="single"
+                  selected={date || undefined}
+                  onSelect={(d) => d && setDate(d)}
+                  initialFocus
+                  className="bg-zinc-900 text-white"
+                />
+              </PopoverContent>
+            </Popover>
 
-          <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+            <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
             <Button 
@@ -217,68 +223,70 @@ export function CalendarDashboard() {
       </header>
 
       {/* Filter Bar */}
-      <div className="px-6 py-3 bg-zinc-950/50 border-b border-zinc-900/50 flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-3">
-            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Layers className="w-3 h-3 text-orange-500" />
-                STUDIO
-            </label>
-            <Select value={filterStudio} onValueChange={setFilterStudio}>
-                <SelectTrigger className="w-[140px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white hover:border-zinc-700 transition-all">
-                    <SelectValue placeholder="All Studios" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                    <SelectItem value="all">ALL LOCATIONS</SelectItem>
-                    {schedule?.studios.map(studio => (
-                        <SelectItem key={studio} value={studio}>{studio.toUpperCase()}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-        </div>
+      {isMounted && (
+        <div className="px-6 py-3 bg-zinc-950/50 border-b border-zinc-900/50 flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-3">
+              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <Layers className="w-3 h-3 text-orange-500" />
+                  STUDIO
+              </label>
+              <Select value={filterStudio} onValueChange={setFilterStudio}>
+                  <SelectTrigger className="w-[140px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white hover:border-zinc-700 transition-all">
+                      <SelectValue placeholder="All Studios" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                      <SelectItem value="all">ALL LOCATIONS</SelectItem>
+                      {schedule?.studios.map(studio => (
+                          <SelectItem key={studio} value={studio}>{studio.toUpperCase()}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+          </div>
 
-        <div className="flex items-center gap-3">
-            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Filter className="w-3 h-3 text-orange-500" />
-                STATUS
-            </label>
-            <Select value={filterAvailability} onValueChange={setFilterAvailability}>
-                <SelectTrigger className="w-[140px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white hover:border-zinc-700 transition-all">
-                    <SelectValue placeholder="All Slots" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                    <SelectItem value="all">ALL SLOTS</SelectItem>
-                    <SelectItem value="available">AVAILABLE ONLY</SelectItem>
-                    <SelectItem value="booked">BOOKED CLASSES</SelectItem>
-                </SelectContent>
-            </Select>
-        </div>
+          <div className="flex items-center gap-3">
+              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <Filter className="w-3 h-3 text-orange-500" />
+                  STATUS
+              </label>
+              <Select value={filterAvailability} onValueChange={setFilterAvailability}>
+                  <SelectTrigger className="w-[140px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white hover:border-zinc-700 transition-all">
+                      <SelectValue placeholder="All Slots" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                      <SelectItem value="all">ALL SLOTS</SelectItem>
+                      <SelectItem value="available">AVAILABLE ONLY</SelectItem>
+                      <SelectItem value="booked">BOOKED CLASSES</SelectItem>
+                  </SelectContent>
+              </Select>
+          </div>
 
-        {isFiltered && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={clearFilters}
-            className="h-9 text-[9px] font-black text-red-500 hover:text-white hover:bg-red-500/20 gap-2 rounded-xl px-4 transition-all"
-          >
-            <XCircle className="w-3.5 h-3.5" />
-            CLEAR ALL
-          </Button>
-        )}
+          {isFiltered && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearFilters}
+              className="h-9 text-[9px] font-black text-red-500 hover:text-white hover:bg-red-500/20 gap-2 rounded-xl px-4 transition-all"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              CLEAR ALL
+            </Button>
+          )}
 
-        <div className="ml-auto hidden sm:flex items-center gap-6">
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-md border border-emerald-500/50 bg-emerald-500/10" />
-                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Available</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-md bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]" />
-                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Booked</span>
-            </div>
+          <div className="ml-auto hidden sm:flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-md border border-emerald-500/50 bg-emerald-500/10" />
+                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Available</span>
+              </div>
+              <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-md bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]" />
+                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Booked</span>
+              </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Summary Cards */}
-      {!loading && schedule && (
+      {!loading && schedule && isMounted && (
         <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-700">
             {/* Booked Slots Card */}
             <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-red-500/20">
@@ -294,7 +302,7 @@ export function CalendarDashboard() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <ScrollArea className="h-fit max-h-[400px]">
+                    <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800">
                         <div className="p-4 space-y-3">
                             {filterStudio === 'all' ? (
                                 Object.entries(summaryData.bookedByStudio || {})
@@ -320,7 +328,7 @@ export function CalendarDashboard() {
                                 <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No bookings matched</p>
                             )}
                         </div>
-                    </ScrollArea>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -338,7 +346,7 @@ export function CalendarDashboard() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <ScrollArea className="h-fit max-h-[400px]">
+                    <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800">
                         <div className="p-4 space-y-3">
                             {filterStudio === 'all' ? (
                                 Object.entries(summaryData.availableByStudio || {})
@@ -362,7 +370,7 @@ export function CalendarDashboard() {
                                 <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No slots available</p>
                             )}
                         </div>
-                    </ScrollArea>
+                    </div>
                 </CardContent>
             </Card>
         </div>
@@ -390,7 +398,7 @@ export function CalendarDashboard() {
                       </div>
                     </TableHead>
                     {filteredStudios.map((studio) => (
-                      <TableHead key={studio} className="min-w-[140px] font-black text-orange-500 uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-4 whitespace-nowrap px-6 text-[10px]">
+                      <TableHead key={studio} className="min-w-[140px] font-black text-orange-500 uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-4 whitespace-nowrap px-6 text-[10px] bg-zinc-950 sticky top-0 z-30">
                         {studio}
                       </TableHead>
                     ))}
