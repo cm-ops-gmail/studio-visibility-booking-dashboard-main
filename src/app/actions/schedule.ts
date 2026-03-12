@@ -22,6 +22,7 @@ const ALLOWED_STUDIOS = [
   'Studio 11 - NB2',
   'POD 1 - HQ1',
   'POD 2 - HQ1',
+  'Green Room',
 ];
 
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
