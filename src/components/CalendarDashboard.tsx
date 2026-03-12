@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchDaySchedule } from '@/app/actions/schedule';
-import { DaySchedule } from '@/app/lib/types';
+import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
@@ -11,6 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function CalendarDashboard() {
   const [date, setDate] = useState<Date>(new Date());
@@ -43,23 +44,31 @@ export function CalendarDashboard() {
   const nextDay = () => setDate(addDays(date, 1));
   const prevDay = () => setDate(subDays(date, 1));
 
+  // Helper to get all bookings for a studio to help with AI suggestions
+  const getBookingsForStudio = (studio: string): ClassBooking[] => {
+    if (!schedule) return [];
+    return schedule.timeSlots
+      .map(time => schedule.grid[time][studio])
+      .filter(slot => slot.isBooked);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[#F8F9FD]">
       <header className="sticky top-0 z-20 bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+          <div className="w-10 h-10 bg-[#403399] rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
             <CalendarIcon className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-headline font-bold tracking-tight text-foreground">
+            <h1 className="text-xl font-headline font-bold tracking-tight text-[#403399]">
               Studio TimeGrid
             </h1>
-            <p className="text-xs text-muted-foreground font-medium">Class Operations Dashboard</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Operations</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg border">
-          <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 hover:bg-white rounded-md shadow-sm">
+        <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border">
+          <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 hover:bg-white rounded-md">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
@@ -68,11 +77,11 @@ export function CalendarDashboard() {
               <Button
                 variant="ghost"
                 className={cn(
-                  "px-4 h-8 font-medium text-sm hover:bg-white rounded-md shadow-sm transition-all",
+                  "px-4 h-8 font-semibold text-sm hover:bg-white rounded-md transition-all",
                   !date && "text-muted-foreground"
                 )}
               >
-                {isMounted ? format(date, 'EEEE, MMMM d, yyyy') : 'Loading date...'}
+                {isMounted ? format(date, 'EEEE, MMMM d, yyyy') : 'Loading...'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="center">
@@ -85,7 +94,7 @@ export function CalendarDashboard() {
             </PopoverContent>
           </Popover>
 
-          <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 hover:bg-white rounded-md shadow-sm">
+          <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 hover:bg-white rounded-md">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -95,44 +104,52 @@ export function CalendarDashboard() {
             size="sm" 
             onClick={() => loadData(date)}
             disabled={loading}
-            className="hidden sm:flex rounded-full gap-2 border-primary/20 text-primary"
+            className="rounded-full gap-2 border-primary/20 text-primary"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Refresh
+          Sync
         </Button>
       </header>
 
-      <main className="flex-1 p-6 overflow-x-auto">
+      <main className="flex-1 p-6 overflow-auto">
         {!isMounted || loading ? (
-          <div className="h-full flex flex-col items-center justify-center gap-4 py-20">
-            <div className="relative">
-                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                <CalendarIcon className="w-6 h-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-            </div>
-            <p className="text-muted-foreground font-medium animate-pulse">Syncing schedule from Google Sheets...</p>
+          <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
+            <Loader2 className="h-10 w-10 text-primary animate-spin" />
+            <p className="text-muted-foreground font-medium">Fetching class schedule...</p>
           </div>
         ) : schedule && schedule.studios.length > 0 ? (
-          <div className="grid gap-6 min-w-max pb-10" style={{ gridTemplateColumns: `repeat(${schedule.studios.length}, minmax(320px, 1fr))` }}>
-            {schedule.studios.map((studio) => (
-              <div key={studio} className="flex flex-col gap-4">
-                <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 sticky top-24 z-10 backdrop-blur-sm">
-                  <h2 className="text-lg font-headline font-bold text-primary text-center uppercase tracking-wide">
-                    {studio}
-                  </h2>
-                </div>
-                
-                <div className="flex flex-col gap-4">
-                  {schedule.slots[studio].map((slot) => (
-                    <div key={slot.id} className="min-h-[140px]">
-                      <SlotCard 
-                        slot={slot} 
-                        existingBookings={schedule.slots[studio]} 
-                      />
-                    </div>
+          <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#F8F9FD] border-b-2 hover:bg-[#F8F9FD]">
+                  <TableHead className="w-[120px] font-bold text-[#403399] uppercase tracking-wider text-center border-r">
+                    TIME
+                  </TableHead>
+                  {schedule.studios.map((studio) => (
+                    <TableHead key={studio} className="min-w-[280px] font-bold text-[#403399] uppercase tracking-wider text-center border-r last:border-r-0 py-6">
+                      {studio}
+                    </TableHead>
                   ))}
-                </div>
-              </div>
-            ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {schedule.timeSlots.map((time) => (
+                  <TableRow key={time} className="hover:bg-transparent">
+                    <TableCell className="font-bold text-[#5C6B89] bg-[#F8F9FD]/50 border-r text-center align-middle py-8">
+                      {time}
+                    </TableCell>
+                    {schedule.studios.map((studio) => (
+                      <TableCell key={`${time}-${studio}`} className="p-2 border-r last:border-r-0 min-h-[160px]">
+                        <SlotCard 
+                          slot={schedule.grid[time][studio]} 
+                          existingBookings={getBookingsForStudio(studio)} 
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center gap-4 bg-white border rounded-3xl shadow-sm max-w-2xl mx-auto">
@@ -142,7 +159,7 @@ export function CalendarDashboard() {
             <div className="space-y-2">
                 <h3 className="text-xl font-headline font-bold text-foreground">No Classes Scheduled</h3>
                 <p className="text-muted-foreground px-10">
-                    There are no studio bookings for {format(date, 'MMMM d, yyyy')}. You can check another date or add new data to your Google Sheet.
+                    There are no studio bookings for {format(date, 'MMMM d, yyyy')}.
                 </p>
             </div>
             <Button onClick={() => setDate(new Date())} variant="secondary" className="rounded-full mt-2">

@@ -8,8 +8,8 @@ export interface ClassBooking {
   subject: string;
   topic: string;
   teacher: string;
-  startTime: string; // ISO or similar
-  endTime: string;   // ISO or similar
+  startTime: string; // ISO
+  endTime: string;   // ISO
   isBooked: boolean;
   suggestedDescription?: string;
 }
@@ -17,5 +17,6 @@ export interface ClassBooking {
 export interface DaySchedule {
   date: string;
   studios: string[];
-  slots: Record<string, ClassBooking[]>;
+  timeSlots: string[]; // List of all unique times found for the day
+  grid: Record<string, Record<string, ClassBooking>>; // time -> studio -> booking
 }

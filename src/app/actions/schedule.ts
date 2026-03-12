@@ -1,36 +1,28 @@
+
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule } from '@/app/lib/types';
-import { parse, format, addHours, isSameDay, isValid } from 'date-fns';
+import { parse, format, addHours, isSameDay, isValid, compareAsc } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION = 2; // Hours
-const DAY_START_HOUR = 8;
-const DAY_END_HOUR = 22;
 
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // Filter out rows that are missing critical date/time information
   const bookings: ClassBooking[] = allRows
     .filter((row) => row['Date'] && row['Scheduled Time'])
     .map((row) => {
-      const dateStr = String(row['Date']);
-      const timeStr = String(row['Scheduled Time']);
+      const dateStr = String(row['Date']).trim();
+      const timeStr = String(row['Scheduled Time']).trim();
       
-      // Explicitly parse the date format: "Thursday, March 12, 2026"
       let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
-      
-      // Fallback if the format doesn't match exactly
       if (!isValid(parsedDay)) {
         parsedDay = new Date(dateStr);
       }
 
-      // Explicitly parse the time format: "5:45 AM"
       let startTime = parse(timeStr, 'h:mm a', parsedDay);
-      
-      // Fallback for time
       if (!isValid(startTime)) {
          startTime = parsedDay;
       }
@@ -39,7 +31,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
 
       return {
         id: row.id,
-        studio: row['Studio'] || 'Unknown',
+        studio: (row['Studio'] || 'Unknown').trim(),
         date: dateStr,
         scheduledTime: timeStr,
         course: row['Course'] || '',
@@ -51,61 +43,52 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
         isBooked: true,
       };
     })
-    .filter((b) => isValid(new Date(b.startTime)));
+    .filter((b) => isValid(new Date(b.startTime)) && isSameDay(new Date(b.startTime), targetDate));
 
-  // Filter by target date
-  const filteredBookings = bookings.filter((b) => isSameDay(new Date(b.startTime), targetDate));
+  const uniqueStudios = Array.from(new Set(bookings.map((b) => b.studio))).sort();
+  
+  // Extract and sort unique time slots from the data
+  const timeSlotStrings = Array.from(new Set(bookings.map(b => b.scheduledTime)));
+  const sortedTimeSlots = timeSlotStrings.sort((a, b) => {
+    const dateA = parse(a, 'h:mm a', targetDate);
+    const dateB = parse(b, 'h:mm a', targetDate);
+    return compareAsc(dateA, dateB);
+  });
 
-  // Get unique studios
-  const uniqueStudios = Array.from(new Set(filteredBookings.map((b) => b.studio))).sort();
-  if (uniqueStudios.length === 0) {
-      // Return defaults if no bookings
-      return { date: format(targetDate, 'yyyy-MM-dd'), studios: [], slots: {} };
-  }
+  const grid: Record<string, Record<string, ClassBooking>> = {};
 
-  const schedule: Record<string, ClassBooking[]> = {};
-
-  uniqueStudios.forEach((studio) => {
-    const studioBookings = filteredBookings.filter((b) => b.studio === studio);
-    const studioSlots: ClassBooking[] = [];
-    
-    // Create slots from DAY_START to DAY_END
-    let current = parse(`${DAY_START_HOUR}:00 AM`, 'h:mm a', targetDate);
-    const end = parse(`${DAY_END_HOUR}:00 PM`, 'h:mm a', targetDate);
-
-    while (current < end) {
-      const slotStartTimeStr = format(current, 'h:mm a');
-      // Look for a booking that starts exactly at this time
-      const existing = studioBookings.find((b) => format(new Date(b.startTime), 'h:mm a') === slotStartTimeStr);
-
-      if (existing) {
-        studioSlots.push(existing);
-        current = new Date(existing.endTime);
+  sortedTimeSlots.forEach((time) => {
+    grid[time] = {};
+    uniqueStudios.forEach((studio) => {
+      const booking = bookings.find(b => b.studio === studio && b.scheduledTime === time);
+      if (booking) {
+        grid[time][studio] = booking;
       } else {
-        const slotEnd = addHours(current, CLASS_DURATION);
-        studioSlots.push({
-          id: `free-${studio}-${slotStartTimeStr}`,
+        // Create an "available" slot for this studio at this time
+        const slotStart = parse(time, 'h:mm a', targetDate);
+        const slotEnd = addHours(slotStart, CLASS_DURATION);
+        grid[time][studio] = {
+          id: `free-${studio}-${time}`,
           studio,
           date: format(targetDate, 'EEEE, MMMM d, yyyy'),
-          scheduledTime: slotStartTimeStr,
+          scheduledTime: time,
           course: '',
           subject: '',
           topic: '',
           teacher: '',
-          startTime: current.toISOString(),
+          startTime: slotStart.toISOString(),
           endTime: slotEnd.toISOString(),
           isBooked: false,
-        });
-        current = slotEnd;
+        };
       }
-    }
-    schedule[studio] = studioSlots;
+    });
   });
 
   return {
     date: format(targetDate, 'yyyy-MM-dd'),
     studios: uniqueStudios,
-    slots: schedule,
+    timeSlots: sortedTimeSlots,
+    grid,
   };
 }
 
