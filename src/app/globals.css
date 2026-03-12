@@ -1,51 +1,29 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 246 33% 97%; /* #F6F5FB */
-    --foreground: 248 45% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 248 45% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 248 45% 10%;
-    --primary: 248 50% 40%; /* #403399 */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 221 73% 72%; /* #82A2ED Lavender-ish */
-    --secondary-foreground: 248 50% 10%;
-    --muted: 246 20% 90%;
-    --muted-foreground: 248 20% 45%;
-    --accent: 221 73% 72%; /* #82A2ED */
-    --accent-foreground: 248 50% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 246 20% 85%;
-    --input: 246 20% 85%;
-    --ring: 248 50% 40%;
-    --radius: 0.75rem;
-  }
-  .dark {
-    --background: 248 45% 5%;
-    --foreground: 246 33% 97%;
-    --card: 248 45% 8%;
-    --card-foreground: 246 33% 97%;
-    --popover: 248 45% 8%;
-    --popover-foreground: 246 33% 97%;
-    --primary: 221 73% 72%;
-    --primary-foreground: 248 50% 10%;
-    --secondary: 248 50% 40%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 248 30% 15%;
-    --muted-foreground: 248 20% 65%;
-    --accent: 221 73% 72%;
-    --accent-foreground: 248 50% 10%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 248 30% 15%;
-    --input: 248 30% 15%;
-    --ring: 221 73% 72%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 263.4 70% 50.4%;
+    --radius: 0.75rem;
   }
 }
 
@@ -57,4 +35,13 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+.animate-in-fade {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

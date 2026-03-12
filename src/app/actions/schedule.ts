@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
@@ -42,7 +41,6 @@ function normalizeStudio(name: string): string {
 
 function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  // Format typically: "Friday, March 13, 2026"
   const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
     const monthDay = parts[1];
@@ -103,7 +101,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
       return {
-        id: `row-${index}`, // Use spreadsheet row index as a stable ID
+        id: `row-${index}`, 
         studio: studioMatch,
         date: dateVal,
         scheduledTime: timeVal,
