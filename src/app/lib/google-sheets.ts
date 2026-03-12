@@ -28,17 +28,18 @@ export async function getSheetData() {
     const rows = response.data.values;
     if (!rows || rows.length < 3) return [];
 
-    // Column headers are in row 1 (index 0)
-    const headers = rows[0];
+    // Column headers are in row 1 (index 0). Trim them to avoid mismatches.
+    const headers = (rows[0] || []).map(h => String(h || '').trim());
     
     // Data starts from row 3 (index 2), skipping row 2
-    // Filter out rows that are completely empty
     return rows.slice(2)
       .filter(row => row && row.length > 0 && row.some(cell => cell && String(cell).trim() !== ''))
       .map((row, index) => {
         const obj: any = { id: `row-${index}` };
         headers.forEach((header, i) => {
-          obj[header] = row[i];
+          if (header) {
+            obj[header] = row[i];
+          }
         });
         return obj;
       });

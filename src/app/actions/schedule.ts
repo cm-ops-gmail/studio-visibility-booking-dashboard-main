@@ -10,12 +10,15 @@ const CLASS_DURATION = 2; // Hours
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // 1. Extract ALL unique studios from the entire spreadsheet
-  const allStudios = Array.from(new Set(
-    allRows
-      .map(row => String(row['Studio'] || '').trim())
-      .filter(studio => studio !== '' && studio !== 'Studio') // Avoid header artifacts
-  )).sort();
+  // 1. Extract ALL unique studios from the entire spreadsheet in order of appearance
+  const studiosInOrder: string[] = [];
+  allRows.forEach(row => {
+    const s = String(row['Studio'] || '').trim();
+    if (s && s !== '' && s !== 'Studio' && !studiosInOrder.includes(s)) {
+      studiosInOrder.push(s);
+    }
+  });
+  const allStudios = studiosInOrder;
 
   // 2. Extract ALL unique time slots from the entire spreadsheet to keep the grid consistent
   const allTimeSlotStrings = Array.from(new Set(

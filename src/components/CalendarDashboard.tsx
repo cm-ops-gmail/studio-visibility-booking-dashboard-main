@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -44,7 +43,6 @@ export function CalendarDashboard() {
   const nextDay = () => setDate(addDays(date, 1));
   const prevDay = () => setDate(subDays(date, 1));
 
-  // Helper to get all bookings for a studio to help with AI suggestions
   const getBookingsForStudio = (studio: string): ClassBooking[] => {
     if (!schedule) return [];
     return schedule.timeSlots
@@ -54,7 +52,7 @@ export function CalendarDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9FD]">
-      <header className="sticky top-0 z-20 bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-30 bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-[#403399] rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
             <CalendarIcon className="w-5 h-5 text-white" />
@@ -111,45 +109,47 @@ export function CalendarDashboard() {
         </Button>
       </header>
 
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-6 overflow-hidden">
         {!isMounted || loading ? (
           <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-10 w-10 text-primary animate-spin" />
             <p className="text-muted-foreground font-medium">Fetching class schedule...</p>
           </div>
         ) : schedule && schedule.studios.length > 0 ? (
-          <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-[#F8F9FD] border-b-2 hover:bg-[#F8F9FD]">
-                  <TableHead className="w-[120px] font-bold text-[#403399] uppercase tracking-wider text-center border-r">
-                    TIME
-                  </TableHead>
-                  {schedule.studios.map((studio) => (
-                    <TableHead key={studio} className="min-w-[280px] font-bold text-[#403399] uppercase tracking-wider text-center border-r last:border-r-0 py-6">
-                      {studio}
+          <div className="bg-white rounded-3xl border shadow-sm overflow-hidden h-full flex flex-col">
+            <div className="overflow-auto flex-1">
+              <Table className="border-separate border-spacing-0">
+                <TableHeader className="sticky top-0 z-20">
+                  <TableRow className="bg-[#F8F9FD] hover:bg-[#F8F9FD]">
+                    <TableHead className="w-[120px] sticky left-0 z-30 bg-[#F8F9FD] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b">
+                      TIME
                     </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {schedule.timeSlots.map((time) => (
-                  <TableRow key={time} className="hover:bg-transparent">
-                    <TableCell className="font-bold text-[#5C6B89] bg-[#F8F9FD]/50 border-r text-center align-middle py-8">
-                      {time}
-                    </TableCell>
                     {schedule.studios.map((studio) => (
-                      <TableCell key={`${time}-${studio}`} className="p-2 border-r last:border-r-0 min-h-[160px]">
-                        <SlotCard 
-                          slot={schedule.grid[time][studio]} 
-                          existingBookings={getBookingsForStudio(studio)} 
-                        />
-                      </TableCell>
+                      <TableHead key={studio} className="min-w-[280px] font-bold text-[#403399] uppercase tracking-wider text-center border-r border-b py-6 last:border-r-0">
+                        {studio}
+                      </TableHead>
                     ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {schedule.timeSlots.map((time) => (
+                    <TableRow key={time} className="hover:bg-transparent">
+                      <TableCell className="font-bold text-[#5C6B89] sticky left-0 z-10 bg-[#F8F9FD] border-r border-b text-center align-middle py-8">
+                        {time}
+                      </TableCell>
+                      {schedule.studios.map((studio) => (
+                        <TableCell key={`${time}-${studio}`} className="p-2 border-r border-b last:border-r-0 min-h-[160px]">
+                          <SlotCard 
+                            slot={schedule.grid[time][studio]} 
+                            existingBookings={getBookingsForStudio(studio)} 
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center gap-4 bg-white border rounded-3xl shadow-sm max-w-2xl mx-auto">
