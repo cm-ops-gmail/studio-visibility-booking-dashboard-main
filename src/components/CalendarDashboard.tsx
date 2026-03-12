@@ -105,12 +105,12 @@ export function CalendarDashboard() {
             <h1 className="text-2xl font-black tracking-tighter text-white">
               STUDIO <span className="text-primary">GRID</span>
             </h1>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Dhaka Standard Time</p>
+            <p className="text-[10px] text-white font-bold uppercase tracking-[0.2em]">Dhaka Standard Time</p>
           </div>
         </div>
 
         <div className="flex items-center gap-1 bg-zinc-900/50 p-1.5 rounded-xl border border-zinc-800">
-          <Button variant="ghost" size="icon" onClick={prevDay} className="h-9 w-9 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg">
+          <Button variant="ghost" size="icon" onClick={prevDay} className="h-9 w-9 text-white hover:bg-zinc-800 rounded-lg">
             <ChevronLeft className="h-5 w-5" />
           </Button>
           
@@ -118,7 +118,7 @@ export function CalendarDashboard() {
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
-                className="px-6 h-9 font-black text-sm text-zinc-200 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
+                className="px-6 h-9 font-black text-sm text-white hover:bg-zinc-800 rounded-lg transition-all"
               >
                 {isMounted ? format(date, 'EEEE, MMMM d, yyyy').toUpperCase() : 'LOADING...'}
               </Button>
@@ -134,7 +134,7 @@ export function CalendarDashboard() {
             </PopoverContent>
           </Popover>
 
-          <Button variant="ghost" size="icon" onClick={nextDay} className="h-9 w-9 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg">
+          <Button variant="ghost" size="icon" onClick={nextDay} className="h-9 w-9 text-white hover:bg-zinc-800 rounded-lg">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
@@ -145,7 +145,7 @@ export function CalendarDashboard() {
                 size="sm" 
                 onClick={() => loadData(date)}
                 disabled={loading}
-                className="rounded-xl gap-2 border-zinc-800 text-zinc-300 bg-zinc-900 hover:bg-zinc-800 hover:text-white transition-all shadow-lg"
+                className="rounded-xl gap-2 border-zinc-800 text-white bg-zinc-900 hover:bg-zinc-800 transition-all shadow-lg"
             >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             SYNC DATA
@@ -156,12 +156,12 @@ export function CalendarDashboard() {
       {/* Modern Filter Bar */}
       <div className="px-6 py-5 bg-zinc-950/50 border-b border-zinc-900 flex flex-wrap items-center gap-8">
         <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+            <label className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                 <Layers className="w-3 h-3 text-primary" />
                 STUDIO LOCATION
             </label>
             <Select value={filterStudio} onValueChange={setFilterStudio}>
-                <SelectTrigger className="w-[240px] h-11 rounded-xl bg-zinc-900 border-zinc-800 focus:ring-primary focus:border-primary text-sm font-bold">
+                <SelectTrigger className="w-[240px] h-11 rounded-xl bg-zinc-900 border-zinc-800 focus:ring-primary focus:border-primary text-sm font-bold text-white">
                     <SelectValue placeholder="All Studios" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
@@ -174,12 +174,12 @@ export function CalendarDashboard() {
         </div>
 
         <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+            <label className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                 <Filter className="w-3 h-3 text-primary" />
                 AVAILABILITY TYPE
             </label>
             <Select value={filterAvailability} onValueChange={setFilterAvailability}>
-                <SelectTrigger className="w-[200px] h-11 rounded-xl bg-zinc-900 border-zinc-800 focus:ring-primary focus:border-primary text-sm font-bold">
+                <SelectTrigger className="w-[200px] h-11 rounded-xl bg-zinc-900 border-zinc-800 focus:ring-primary focus:border-primary text-sm font-bold text-white">
                     <SelectValue placeholder="All Slots" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
@@ -205,11 +205,11 @@ export function CalendarDashboard() {
         <div className="ml-auto mt-6 hidden lg:flex items-center gap-6">
             <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-md border-2 border-dashed border-zinc-700 bg-zinc-900/50" />
-                <span className="text-[10px] font-bold text-zinc-500 tracking-wider">AVAILABLE</span>
+                <span className="text-[10px] font-bold text-white tracking-wider">AVAILABLE</span>
             </div>
             <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-md bg-primary shadow-[0_0_10px_rgba(139,92,246,0.3)]" />
-                <span className="text-[10px] font-bold text-zinc-500 tracking-wider">BOOKED</span>
+                <span className="text-[10px] font-bold text-white tracking-wider">BOOKED</span>
             </div>
         </div>
       </div>
@@ -221,7 +221,7 @@ export function CalendarDashboard() {
                 <Loader2 className="h-16 w-16 text-primary animate-spin" />
                 <Zap className="h-6 w-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
             </div>
-            <p className="text-zinc-400 font-black text-sm tracking-[0.3em] uppercase">Initializing Grid...</p>
+            <p className="text-white font-black text-sm tracking-[0.3em] uppercase">Initializing Grid...</p>
           </div>
         ) : schedule && filteredIntervals.length > 0 ? (
           <div className="bg-zinc-900/30 rounded-[2.5rem] border border-zinc-900 shadow-2xl overflow-hidden flex-1 flex flex-col backdrop-blur-sm animate-in-fade">
@@ -231,12 +231,12 @@ export function CalendarDashboard() {
                   <TableRow className="bg-zinc-950/95 hover:bg-zinc-950 border-none">
                     <TableHead className="w-[120px] min-w-[120px] sticky left-0 z-40 bg-zinc-950 font-black text-primary uppercase tracking-[0.2em] text-center border-r border-b border-zinc-800/50 p-6 text-[10px]">
                       <div className="flex flex-col items-center gap-2">
-                        <Clock className="w-4 h-4" />
+                        <Clock className="w-4 h-4 text-primary" />
                         TIME
                       </div>
                     </TableHead>
                     {filteredStudios.map((studio) => (
-                      <TableHead key={studio} className="min-w-[280px] font-black text-zinc-300 uppercase tracking-widest text-center border-r border-b border-zinc-800/50 py-8 last:border-r-0 whitespace-nowrap px-6 text-xs">
+                      <TableHead key={studio} className="min-w-[280px] font-black text-white uppercase tracking-widest text-center border-r border-b border-zinc-800/50 py-8 last:border-r-0 whitespace-nowrap px-6 text-xs">
                         {studio}
                       </TableHead>
                     ))}
@@ -245,7 +245,7 @@ export function CalendarDashboard() {
                 <TableBody>
                   {filteredIntervals.map((interval) => (
                     <TableRow key={interval.start} className="hover:bg-zinc-900/10 border-none group transition-colors duration-300">
-                      <TableCell className="font-black text-zinc-500 sticky left-0 z-20 bg-zinc-950/90 backdrop-blur-md border-r border-b border-zinc-900/50 text-center align-middle py-6 text-[11px] leading-tight px-2 h-24 group-hover:text-primary transition-colors">
+                      <TableCell className="font-black text-white sticky left-0 z-20 bg-zinc-950/90 backdrop-blur-md border-r border-b border-zinc-900/50 text-center align-middle py-6 text-[11px] leading-tight px-2 h-24 group-hover:text-primary transition-colors">
                         {interval.label}
                       </TableCell>
                       {filteredStudios.map((studio) => {
@@ -306,7 +306,7 @@ export function CalendarDashboard() {
             </div>
             <div className="space-y-4">
                 <h3 className="text-3xl font-black text-white tracking-tighter">NO DATA FOUND</h3>
-                <p className="text-zinc-500 max-w-md mx-auto font-medium text-sm leading-relaxed">
+                <p className="text-white max-w-md mx-auto font-medium text-sm leading-relaxed">
                     No matching schedule data found for your current filters on {format(date, 'MMMM d, yyyy')}. Try adjusting your studio or availability criteria.
                 </p>
             </div>

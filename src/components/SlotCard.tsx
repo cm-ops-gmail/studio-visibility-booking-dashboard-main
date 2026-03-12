@@ -44,18 +44,18 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
             <div className="flex justify-between items-start gap-3">
               <div className="flex flex-col gap-2">
                 {slot.productType && (
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
                     {slot.productType}
                   </span>
                 )}
-                <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest text-white border-zinc-700 bg-zinc-800/50 px-3 py-1">
+                <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest text-white border-white/20 bg-zinc-800/50 px-3 py-1">
                   {slot.course || 'GENERAL'}
                 </Badge>
               </div>
               {timeRangeLabel && (
                 <div className="bg-zinc-950/80 border border-zinc-800 px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-inner">
-                  <Clock className="w-3 h-3 text-zinc-500" />
-                  <span className="text-[10px] font-black text-zinc-300 whitespace-nowrap tracking-wider">
+                  <Clock className="w-3 h-3 text-white" />
+                  <span className="text-[10px] font-black text-white whitespace-nowrap tracking-wider">
                     {timeRangeLabel}
                   </span>
                 </div>
@@ -67,21 +67,21 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
             </h3>
             
             {slot.topic && (
-              <div className="flex items-start gap-2.5 mt-3 p-3 rounded-2xl bg-zinc-950/40 border border-zinc-800/30">
-                <Layers className="w-4 h-4 text-zinc-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-zinc-400 font-medium leading-relaxed italic line-clamp-3">
+              <div className="flex items-start gap-2.5 mt-3 p-3 rounded-2xl bg-zinc-950/40 border border-white/10">
+                <Layers className="w-4 h-4 text-white shrink-0 mt-0.5" />
+                <p className="text-xs text-white font-medium leading-relaxed italic line-clamp-3">
                   {slot.topic}
                 </p>
               </div>
             )}
           </div>
           
-          <div className="flex items-center gap-3 mt-auto pt-4 border-t border-zinc-800/50">
+          <div className="flex items-center gap-3 mt-auto pt-4 border-t border-white/10">
             <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 group-hover:bg-primary transition-colors duration-300">
-              <User className="w-5 h-5 text-primary group-hover:text-white transition-colors" />
+              <User className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col">
-                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">INSTRUCTOR</span>
+                <span className="text-[9px] font-black text-white uppercase tracking-widest">INSTRUCTOR</span>
                 <span className="text-sm font-black text-white truncate max-w-[180px]">
                   {slot.teacher || 'TBA'}
                 </span>
@@ -95,11 +95,11 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
   return (
     <Card className="h-full min-h-full border-2 border-dashed border-zinc-800 bg-zinc-950/20 flex flex-col items-center justify-center p-6 hover:bg-zinc-900/40 hover:border-zinc-700 transition-all duration-500 group relative">
       <div className="text-center space-y-4">
-        <div className="text-[11px] font-black text-zinc-600 group-hover:text-zinc-400 transition-colors px-4 uppercase tracking-[0.3em] flex items-center gap-3 justify-center">
+        <div className="text-[11px] font-black text-white group-hover:text-white transition-colors px-4 uppercase tracking-[0.3em] flex items-center gap-3 justify-center">
             {suggestion ? (
                 <Sparkles className="w-4 h-4 text-primary animate-pulse" />
             ) : (
-                <div className="w-1.5 h-1.5 rounded-full bg-zinc-800 group-hover:bg-primary transition-colors" />
+                <div className="w-1.5 h-1.5 rounded-full bg-primary transition-colors" />
             )}
             {suggestion || "AVAILABLE"}
         </div>
@@ -108,7 +108,7 @@ export function SlotCard({ slot, existingBookings }: SlotCardProps) {
           <button 
             onClick={handleSuggest} 
             disabled={loading}
-            className="rounded-2xl h-11 text-[10px] font-black uppercase tracking-[0.2em] bg-zinc-900 text-zinc-400 hover:bg-primary hover:text-white transition-all border border-zinc-800 hover:border-primary shadow-2xl px-6 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 disabled:opacity-50 hover:scale-105 active:scale-95"
+            className="rounded-2xl h-11 text-[10px] font-black uppercase tracking-[0.2em] bg-zinc-900 text-white hover:bg-primary hover:text-white transition-all border border-zinc-800 hover:border-primary shadow-2xl px-6 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 disabled:opacity-50 hover:scale-105 active:scale-95"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
