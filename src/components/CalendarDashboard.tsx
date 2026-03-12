@@ -107,19 +107,19 @@ export function CalendarDashboard() {
     <div className="min-h-screen flex flex-col bg-zinc-950 text-white selection:bg-primary/30 selection:text-white font-body">
       <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-900 px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+          <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(234,88,12,0.3)]">
             <Zap className="w-5 h-5 text-white fill-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tighter text-white">
-              STUDIO <span className="text-primary">GRID</span>
+            <h1 className="text-xl font-black tracking-tighter text-orange-500">
+              STUDIO <span className="text-orange-500">GRID</span>
             </h1>
-            <p className="text-[9px] text-white/50 font-bold uppercase tracking-[0.2em]">Dhaka Operations Hub</p>
+            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Dhaka Operations Hub</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800 shadow-inner">
-          <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 text-white hover:bg-zinc-800 rounded-lg">
+          <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
@@ -143,7 +143,7 @@ export function CalendarDashboard() {
             </PopoverContent>
           </Popover>
 
-          <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 text-white hover:bg-zinc-800 rounded-lg">
+          <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -154,7 +154,7 @@ export function CalendarDashboard() {
                 size="sm" 
                 onClick={() => loadData(date)}
                 disabled={loading}
-                className="h-9 rounded-xl gap-2 border-zinc-800 text-white bg-zinc-900 hover:bg-zinc-800 text-[10px] font-black tracking-widest px-4 shadow-lg hover:shadow-primary/5"
+                className="h-9 rounded-xl gap-2 border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800 hover:text-white text-[10px] font-black tracking-widest px-4 shadow-lg hover:shadow-primary/5"
             >
             {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
             SYNC DATA
@@ -165,8 +165,8 @@ export function CalendarDashboard() {
       {/* Filter Bar */}
       <div className="px-6 py-3 bg-zinc-950/50 border-b border-zinc-900/50 flex flex-wrap items-center gap-6 animate-in fade-in slide-in-from-top-1 duration-500">
         <div className="flex items-center gap-3">
-            <label className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Layers className="w-3 h-3 text-primary" />
+            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Layers className="w-3 h-3 text-orange-500" />
                 STUDIO
             </label>
             <Select value={filterStudio} onValueChange={setFilterStudio}>
@@ -183,8 +183,8 @@ export function CalendarDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
-            <label className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Filter className="w-3 h-3 text-primary" />
+            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Filter className="w-3 h-3 text-orange-500" />
                 STATUS
             </label>
             <Select value={filterAvailability} onValueChange={setFilterAvailability}>
@@ -214,23 +214,23 @@ export function CalendarDashboard() {
         <div className="ml-auto hidden sm:flex items-center gap-6">
             <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-md border border-emerald-500/50 bg-emerald-500/10" />
-                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Available</span>
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Available</span>
             </div>
             <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-md bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]" />
-                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Booked</span>
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Booked</span>
             </div>
         </div>
       </div>
 
-      <main className="flex-1 p-6 overflow-hidden flex flex-col bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.03),transparent)]">
+      <main className="flex-1 p-6 overflow-hidden flex flex-col bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.03),transparent)]">
         {!isMounted || loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-6">
             <div className="relative">
-                <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse" />
-                <Loader2 className="h-12 w-12 text-primary animate-spin relative z-10" />
+                <div className="absolute inset-0 bg-orange-600/20 blur-3xl animate-pulse" />
+                <Loader2 className="h-12 w-12 text-orange-500 animate-spin relative z-10" />
             </div>
-            <p className="text-white/40 font-black text-[10px] tracking-[0.4em] uppercase animate-pulse">Initializing Interface</p>
+            <p className="text-zinc-500 font-black text-[10px] tracking-[0.4em] uppercase animate-pulse">Initializing Interface</p>
           </div>
         ) : schedule && filteredIntervals.length > 0 ? (
           <div className="bg-zinc-900/20 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-hidden flex-1 flex flex-col backdrop-blur-md">
@@ -238,14 +238,14 @@ export function CalendarDashboard() {
               <Table className="border-separate border-spacing-0 w-full min-w-max">
                 <TableHeader className="sticky top-0 z-30">
                   <TableRow className="bg-zinc-950/95 border-none">
-                    <TableHead className="w-[70px] min-w-[70px] sticky left-0 z-40 bg-zinc-950 font-black text-primary uppercase tracking-[0.2em] text-center border-r border-b border-zinc-900/50 p-4 text-[9px]">
+                    <TableHead className="w-[70px] min-w-[70px] sticky left-0 z-40 bg-zinc-950 font-black text-orange-500 uppercase tracking-[0.2em] text-center border-r border-b border-zinc-900/50 p-4 text-[9px]">
                       <div className="flex flex-col items-center gap-1.5">
-                        <Clock className="w-4 h-4" />
+                        <Clock className="w-4 h-4 text-orange-500" />
                         TIME
                       </div>
                     </TableHead>
                     {filteredStudios.map((studio) => (
-                      <TableHead key={studio} className="min-w-[140px] font-black text-white uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-4 whitespace-nowrap px-6 text-[10px]">
+                      <TableHead key={studio} className="min-w-[140px] font-black text-orange-500 uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-4 whitespace-nowrap px-6 text-[10px]">
                         {studio}
                       </TableHead>
                     ))}
@@ -254,7 +254,7 @@ export function CalendarDashboard() {
                 <TableBody>
                   {filteredIntervals.map((interval) => (
                     <TableRow key={interval.start} className="hover:bg-zinc-900/5 border-none h-20 transition-all duration-300">
-                      <TableCell className="font-black text-white sticky left-0 z-20 bg-zinc-950/90 backdrop-blur-xl border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-xl shadow-black/20">
+                      <TableCell className="font-black text-orange-500 sticky left-0 z-20 bg-zinc-950/90 backdrop-blur-xl border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-xl shadow-black/20">
                         {interval.label}
                       </TableCell>
                       {filteredStudios.map((studio) => {
@@ -305,12 +305,12 @@ export function CalendarDashboard() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-center gap-8 bg-zinc-900/10 border border-zinc-900 rounded-[3rem] max-w-2xl mx-auto w-full backdrop-blur-sm animate-in zoom-in-95 duration-500">
             <div className="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-[2rem] flex items-center justify-center shadow-2xl relative">
-              <div className="absolute inset-0 bg-primary/5 blur-2xl rounded-full" />
+              <div className="absolute inset-0 bg-orange-600/5 blur-2xl rounded-full" />
               <CalendarIcon className="w-10 h-10 text-zinc-800 relative z-10" />
             </div>
             <div className="space-y-3">
                 <h3 className="text-2xl font-black text-white tracking-tight">GRID IS EMPTY</h3>
-                <p className="text-white/40 max-w-xs mx-auto font-bold text-xs leading-relaxed uppercase tracking-widest">
+                <p className="text-zinc-500 max-w-xs mx-auto font-bold text-xs leading-relaxed uppercase tracking-widest">
                     NO SESSIONS MATCH YOUR CURRENT FILTERS FOR THIS DATE.
                 </p>
             </div>
