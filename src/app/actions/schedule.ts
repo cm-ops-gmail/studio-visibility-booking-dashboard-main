@@ -26,14 +26,12 @@ const ALLOWED_STUDIOS = [
   'POD 1 - HQ1',
   'POD 2 - HQ1',
   'Green Room',
-  'Rescheduled',
 ];
 
 function normalizeStudio(name: string): string {
   const s = String(name || '').trim().toLowerCase();
   if (!s) return '';
   if (s.includes('green room')) return 'Green Room';
-  if (s.includes('rescheduled')) return 'Rescheduled';
   const match = ALLOWED_STUDIOS.find(allowed => 
     allowed.toLowerCase() === s || allowed.toLowerCase().startsWith(s + ' -')
   );
@@ -56,20 +54,15 @@ function parseSheetDate(dateStr: string): Date | null {
 function parseTime(timeStr: string, referenceDay: Date): Date | null {
     if (!timeStr) return null;
     const cleanTime = timeStr.trim().toUpperCase();
-    
-    // Try multiple formats for robust parsing
     const formats = ['h:mm a', 'h:mma', 'h a', 'ha', 'HH:mm'];
     for (const fmt of formats) {
         const t = parse(cleanTime, fmt, referenceDay);
         if (isValid(t)) return t;
     }
-    
-    // Fallback attempt for manual parsing if date-fns fails
     try {
         const d = new Date(`${format(referenceDay, 'yyyy-MM-dd')} ${cleanTime}`);
         if (isValid(d)) return d;
     } catch (e) {}
-    
     return null;
 }
 
@@ -122,7 +115,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       if (!startTime) return null;
 
       let endTime: Date | null = null;
-      // Special logic for Studio Booking: Use Entry Time as the End Time
       if (productType.toLowerCase().includes('studio booking') && entryTimeVal) {
           const parsedEndTime = parseTime(entryTimeVal, referenceDay);
           if (parsedEndTime) {
@@ -130,7 +122,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
           }
       }
       
-      // Fallback for missing or unparseable end times
       if (!endTime) {
           endTime = addHours(startTime, CLASS_DURATION_HOURS);
       }
@@ -139,7 +130,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const hours = Math.floor(durationMinutes / 60);
       const mins = durationMinutes % 60;
       
-      // Build duration label: "1h 30m" or "45m" or "1h"
       let durationLabel = '';
       if (hours > 0) durationLabel += `${hours}H`;
       if (mins > 0) durationLabel += `${hours > 0 ? ' ' : ''}${mins}M`;
@@ -192,10 +182,8 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
-        
         const actualStart = bStart < bEnd ? bStart : bEnd;
         const actualEnd = bStart < bEnd ? bEnd : bStart;
-
         return midPoint >= actualStart && midPoint < actualEnd;
       });
 
