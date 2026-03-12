@@ -7,13 +7,30 @@ import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-f
 
 const CLASS_DURATION = 2; // Hours
 
+// Strictly defined studios in the requested sequence
+const ALLOWED_STUDIOS = [
+  'Studio 1 - HQ1',
+  'Studio 2 - HQ1',
+  'Studio 3 - HQ1',
+  'Studio 4 - HQ1',
+  'Studio 5 - HQ5',
+  'Studio 6 - HQ5',
+  'Studio 7 - HQ5',
+  'Studio 8 - HQ5',
+  'Studio 9 - NB2',
+  'Studio 10 - NB2',
+  'Studio 11 - NB2',
+  'POD 1 - HQ1',
+  'POD 2 - HQ1',
+];
+
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
   if (allRows.length === 0) {
     return {
       date: format(targetDate, 'yyyy-MM-dd'),
-      studios: [],
+      studios: ALLOWED_STUDIOS,
       timeSlots: [],
       grid: {},
     };
@@ -22,25 +39,19 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   // 1. Identify key columns dynamically to handle variations in naming or spacing
   const sampleRow = allRows[0];
   const keys = Object.keys(sampleRow);
-  const studioKey = keys.find(k => k.toLowerCase().includes('studio')) || 'Studio';
+  const studioKey = keys.find(k => k.toLowerCase().trim() === 'studio') || 'Studio';
   const timeKey = keys.find(k => k.toLowerCase().includes('time')) || 'Scheduled Time';
   const dateKey = keys.find(k => k.toLowerCase().includes('date')) || 'Date';
 
-  // 2. Extract ALL unique studios from the entire spreadsheet to ensure headers are constant
-  const studiosInOrder: string[] = [];
-  allRows.forEach(row => {
-    const s = String(row[studioKey] || '').trim();
-    if (s && s !== '' && !studiosInOrder.includes(s)) {
-      studiosInOrder.push(s);
-    }
-  });
-  const allStudios = studiosInOrder;
-
-  // 3. Extract ALL unique time slots from the entire spreadsheet to keep the grid consistent
+  // 2. Extract ALL unique time slots from the entire spreadsheet to keep the grid consistent
   const allTimeSlotStrings = Array.from(new Set(
     allRows
       .map(row => String(row[timeKey] || '').trim())
-      .filter(time => time !== '' && !time.toLowerCase().includes('time'))
+      .filter(time => {
+        if (!time || time.toLowerCase().includes('time')) return false;
+        // Simple regex to check if it's a time format like "5:45 AM"
+        return /\d{1,2}:\d{2}\s+(AM|PM)/i.test(time);
+      })
   )).sort((a, b) => {
     try {
       const dateA = parse(a, 'h:mm a', new Date());
@@ -52,17 +63,18 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     }
   });
 
-  // 4. Parse bookings for the specific target date
+  // 3. Parse bookings for the specific target date
   const bookings: ClassBooking[] = allRows
     .filter((row) => {
         const dateStr = String(row[dateKey] || '').trim();
         const timeStr = String(row[timeKey] || '').trim();
-        return dateStr !== '' && timeStr !== '';
+        const studioVal = String(row[studioKey] || '').trim();
+        return dateStr !== '' && timeStr !== '' && ALLOWED_STUDIOS.includes(studioVal);
     })
     .map((row) => {
       const dateStr = String(row[dateKey]).trim();
       const timeStr = String(row[timeKey]).trim();
-      const studioValue = String(row[studioKey] || 'Unknown').trim();
+      const studioValue = String(row[studioKey]).trim();
       
       // Expected format: "Thursday, March 12, 2026"
       let parsedDay = parse(dateStr, 'EEEE, MMMM d, yyyy', new Date());
@@ -97,7 +109,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
 
   allTimeSlotStrings.forEach((time) => {
     grid[time] = {};
-    allStudios.forEach((studio) => {
+    ALLOWED_STUDIOS.forEach((studio) => {
       const booking = bookings.find(b => b.studio === studio && b.scheduledTime === time);
       if (booking) {
         grid[time][studio] = booking;
@@ -124,7 +136,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
 
   return {
     date: format(targetDate, 'yyyy-MM-dd'),
-    studios: allStudios,
+    studios: ALLOWED_STUDIOS,
     timeSlots: allTimeSlotStrings,
     grid,
   };
