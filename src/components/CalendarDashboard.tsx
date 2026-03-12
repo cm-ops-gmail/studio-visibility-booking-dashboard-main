@@ -13,12 +13,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function CalendarDashboard() {
-  // Use Bangladesh timezone (GMT+6) offset calculation for initial date
-  const [date, setDate] = useState<Date>(() => {
-    // Offset local date to treat as Dhaka time
-    return new Date();
-  });
-  
+  const [date, setDate] = useState<Date>(() => new Date());
   const [schedule, setSchedule] = useState<DaySchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -30,7 +25,9 @@ export function CalendarDashboard() {
   const loadData = async (targetDate: Date) => {
     setLoading(true);
     try {
-      const data = await fetchDaySchedule(targetDate);
+      // Send the date as a simple string to avoid timezone shifts in Server Actions
+      const dateStr = format(targetDate, 'yyyy-MM-dd');
+      const data = await fetchDaySchedule(dateStr);
       setSchedule(data);
     } catch (e) {
       console.error('Failed to load schedule:', e);
@@ -157,7 +154,6 @@ export function CalendarDashboard() {
                         const slot = schedule.grid[interval.start][studio];
                         
                         if (slot.isBooked) {
-                           // Logic to only render the card in the FIRST visible interval it covers
                            const isFirstVisibleIntervalForBooking = !schedule.intervals.some(prevI => {
                               const prevStart = new Date(prevI.start).getTime();
                               const currStart = new Date(interval.start).getTime();
@@ -168,7 +164,6 @@ export function CalendarDashboard() {
 
                            if (!isFirstVisibleIntervalForBooking) return null;
 
-                           // Calculate how many 30-min rows this booking spans
                            const spanCount = schedule.intervals.filter(i => {
                               const iStart = new Date(i.start).getTime();
                               const bStart = new Date(slot.startTime).getTime();

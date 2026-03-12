@@ -31,7 +31,6 @@ const ALLOWED_STUDIOS = [
 
 /**
  * Normalizes studio names for matching. 
- * Handles cases where the sheet might just say "Studio 1" or "POD 1".
  */
 function normalizeStudio(name: string): string {
   const s = String(name || '').trim().toLowerCase();
@@ -40,7 +39,6 @@ function normalizeStudio(name: string): string {
   if (s.includes('green room')) return 'Green Room';
   if (s.includes('rescheduled')) return 'Rescheduled';
   
-  // Standard studio match: find the first allowed studio that contains this name as a prefix
   const match = ALLOWED_STUDIOS.find(allowed => 
     allowed.toLowerCase() === s || allowed.toLowerCase().startsWith(s + ' -')
   );
@@ -52,24 +50,27 @@ function normalizeStudio(name: string): string {
  */
 function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  // Try direct parsing first
-  let d = parse(dateStr.trim(), 'EEEE, MMMM d, yyyy', new Date());
-  if (!isValid(d)) {
-    // Fallback to native JS parser if format varies slightly
-    d = new Date(dateStr);
+  // Try splitting by comma: "Friday, March 13, 2026" -> ["Friday", " March 13", " 2026"]
+  const parts = dateStr.split(',').map(p => p.trim());
+  if (parts.length >= 2) {
+    const monthDay = parts[1]; // "March 13"
+    const year = parts[2] || new Date().getFullYear().toString(); // "2026"
+    const d = parse(`${monthDay} ${year}`, 'MMMM d yyyy', new Date());
+    if (isValid(d)) return d;
   }
+  const d = new Date(dateStr);
   return isValid(d) ? d : null;
 }
 
-export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
+/**
+ * Fetches the schedule for a specific date.
+ * targetDateStr is expected as "yyyy-MM-dd"
+ */
+export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // Convert targetDate (from client) to a timezone-agnostic string YYYY-MM-DD
-  // We treat targetDate as being in Bangladeshi Time (Asia/Dhaka) context
-  const targetDateStr = format(targetDate, 'yyyy-MM-dd');
-  
-  // Use a fixed reference day for time calculations to avoid timezone shifting
-  const referenceDay = startOfDay(targetDate);
+  // Use a fixed reference day for time calculations
+  const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
 
   // 1. Column Mapping Logic
   let studioKey = 'Studio';
@@ -107,15 +108,14 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
       if (!parsedDay) return null;
 
       const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
+      // STRICT DATE FILTERING
       if (rowDateStr !== targetDateStr) return null;
 
       const studioMatch = normalizeStudio(studioRaw);
       if (!ALLOWED_STUDIOS.includes(studioMatch)) return null;
 
-      // Parse time relative to the logical reference day
       let startTime = parse(timeVal, 'h:mm a', referenceDay);
       if (!isValid(startTime)) {
-        // Fallback for cases like "2:00 PM" vs "14:00"
         startTime = parse(timeVal, 'HH:mm', referenceDay);
       }
       if (!isValid(startTime)) return null;
@@ -162,7 +162,6 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   intervals.forEach((interval) => {
     grid[interval.start] = {};
     const intervalStart = new Date(interval.start);
-    // Use a small offset (1 minute) to check if the interval falls within a booking
     const midPoint = addMinutes(intervalStart, 1);
 
     ALLOWED_STUDIOS.forEach((studio) => {
@@ -179,7 +178,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
         grid[interval.start][studio] = {
           id: `free-${studio}-${interval.start}`,
           studio,
-          date: format(referenceDay, 'EEEE, MMMM d, yyyy'),
+          date: targetDateStr,
           scheduledTime: format(intervalStart, 'h:mm a'),
           course: '',
           subject: '',
