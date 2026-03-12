@@ -6,8 +6,8 @@ import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes, dif
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
 
 const CLASS_DURATION_HOURS = 2;
-const DAY_START_HOUR = 8;
-const DAY_END_HOUR = 23;
+const DAY_START_HOUR = 10;
+const DAY_END_HOUR = 22;
 const INTERVAL_MINUTES = 30;
 
 const ALLOWED_STUDIOS = [
