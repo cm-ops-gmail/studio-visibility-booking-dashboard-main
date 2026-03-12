@@ -12,10 +12,10 @@ import { SlotCard } from '@/components/SlotCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function CalendarDashboard() {
-  const [date, setDate] = useState<Date>(() => new Date());
+  // Use null initially to prevent hydration mismatch with Date.now()
+  const [date, setDate] = useState<Date | null>(null);
   const [schedule, setSchedule] = useState<DaySchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -26,6 +26,7 @@ export function CalendarDashboard() {
 
   useEffect(() => {
     setIsMounted(true);
+    setDate(new Date());
   }, []);
 
   const loadData = async (targetDate: Date) => {
@@ -42,13 +43,13 @@ export function CalendarDashboard() {
   };
 
   useEffect(() => {
-    if (isMounted) {
+    if (isMounted && date) {
       loadData(date);
     }
   }, [date, isMounted]);
 
-  const nextDay = () => setDate(addDays(date, 1));
-  const prevDay = () => setDate(subDays(date, 1));
+  const nextDay = () => date && setDate(addDays(date, 1));
+  const prevDay = () => date && setDate(subDays(date, 1));
 
   const clearFilters = () => {
     setFilterStudio('all');
@@ -111,7 +112,6 @@ export function CalendarDashboard() {
             });
           }
         } else {
-            // For available slots, we show the specific interval time
             availableList.push({
               id: slot.id,
               studio: slot.studio,
@@ -165,13 +165,13 @@ export function CalendarDashboard() {
                 variant="ghost"
                 className="px-6 h-8 font-black text-xs text-white hover:bg-zinc-800 rounded-lg transition-all tracking-widest"
               >
-                {isMounted ? format(date, 'MMMM d, yyyy').toUpperCase() : 'LOADING...'}
+                {isMounted && date ? format(date, 'MMMM d, yyyy').toUpperCase() : 'LOADING...'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl" align="center">
               <Calendar
                 mode="single"
-                selected={date}
+                selected={date || undefined}
                 onSelect={(d) => d && setDate(d)}
                 initialFocus
                 className="bg-zinc-900 text-white"
@@ -188,7 +188,7 @@ export function CalendarDashboard() {
             <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => loadData(date)}
+                onClick={() => date && loadData(date)}
                 disabled={loading}
                 className="h-9 rounded-xl gap-2 border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800 hover:text-white text-[10px] font-black tracking-widest px-4 shadow-lg hover:shadow-orange-500/5"
             >
@@ -259,10 +259,10 @@ export function CalendarDashboard() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Updated for dynamic height */}
       {!loading && schedule && (
         <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2 duration-700">
-            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-red-500/20">
+            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-red-500/20 h-fit">
                 <CardHeader className="pb-2 border-b border-zinc-800 bg-red-500/5">
                     <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                         <div className="flex items-center gap-2">
@@ -273,27 +273,25 @@ export function CalendarDashboard() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <ScrollArea className="h-[120px]">
-                        <div className="p-4 space-y-3">
-                            {summaryData.booked.length > 0 ? (
-                                summaryData.booked.map((b) => (
-                                    <div key={b.id} className="flex flex-col border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black text-white uppercase tracking-tight">{b.subject}</span>
-                                            <span className="text-[10px] font-black text-zinc-400">{b.time}</span>
-                                        </div>
-                                        <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">{b.studio}</span>
+                    <div className="p-4 space-y-3">
+                        {summaryData.booked.length > 0 ? (
+                            summaryData.booked.map((b) => (
+                                <div key={b.id} className="flex flex-col border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-black text-white uppercase tracking-tight">{b.subject}</span>
+                                        <span className="text-[10px] font-black text-zinc-400">{b.time}</span>
                                     </div>
-                                ))
-                            ) : (
-                                <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No bookings matched</p>
-                            )}
-                        </div>
-                    </ScrollArea>
+                                    <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">{b.studio}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-[9px] text-zinc-500 font-black text-center py-8 uppercase tracking-[0.2em]">No bookings matched</p>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-emerald-500/20">
+            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden shadow-2xl ring-1 ring-emerald-500/20 h-fit">
                 <CardHeader className="pb-2 border-b border-zinc-800 bg-emerald-500/5">
                     <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                         <div className="flex items-center gap-2">
@@ -304,22 +302,20 @@ export function CalendarDashboard() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <ScrollArea className="h-[120px]">
-                        <div className="p-4 grid grid-cols-2 gap-3">
-                            {summaryData.available.length > 0 ? (
-                                summaryData.available.map((a, i) => (
-                                    <div key={`${a.id}-${i}`} className="flex items-center justify-between bg-zinc-950/50 p-2 rounded-lg border border-zinc-800">
-                                        <div className="flex flex-col">
-                                            <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none mb-1">{a.studio}</span>
-                                            <span className="text-[9px] font-black text-emerald-500">{a.time}</span>
-                                        </div>
+                    <div className="p-4 grid grid-cols-2 gap-3">
+                        {summaryData.available.length > 0 ? (
+                            summaryData.available.map((a, i) => (
+                                <div key={`${a.id}-${i}`} className="flex items-center justify-between bg-zinc-950/50 p-2 rounded-lg border border-zinc-800">
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none mb-1">{a.studio}</span>
+                                        <span className="text-[9px] font-black text-emerald-500">{a.time}</span>
                                     </div>
-                                ))
-                            ) : (
-                                <p className="text-[9px] text-zinc-500 font-black text-center py-8 col-span-2 uppercase tracking-[0.2em]">No slots available</p>
-                            )}
-                        </div>
-                    </ScrollArea>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-[9px] text-zinc-500 font-black text-center py-8 col-span-2 uppercase tracking-[0.2em]">No slots available</p>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
         </div>
