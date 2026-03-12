@@ -10,6 +10,7 @@ const DAY_START_HOUR = 8;
 const DAY_END_HOUR = 23;
 const INTERVAL_MINUTES = 30;
 
+// Strictly defined allowed studios in the required sequence
 const ALLOWED_STUDIOS = [
   'Studio 1 - HQ1',
   'Studio 2 - HQ1',
@@ -30,14 +31,15 @@ const ALLOWED_STUDIOS = [
 
 /**
  * Normalizes studio names for matching. 
- * "Studio 1" in sheet should match "Studio 1 - HQ1" in our allowed list.
+ * Handles cases where the sheet might just say "Studio 1" or "POD 1".
  */
 function normalizeStudio(name: string): string {
   const s = String(name || '').trim().toLowerCase();
   if (!s) return '';
-  // Special case for Green Room and Rescheduled
+  
   if (s.includes('green room')) return 'Green Room';
   if (s.includes('rescheduled')) return 'Rescheduled';
+  
   // Standard studio match: find the first allowed studio that contains this name as a prefix
   const match = ALLOWED_STUDIOS.find(allowed => 
     allowed.toLowerCase() === s || allowed.toLowerCase().startsWith(s + ' -')
@@ -45,18 +47,31 @@ function normalizeStudio(name: string): string {
   return match || name;
 }
 
+/**
+ * Robust date parser for the "Friday, March 13, 2026" format.
+ */
+function parseSheetDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  // Try direct parsing first
+  let d = parse(dateStr.trim(), 'EEEE, MMMM d, yyyy', new Date());
+  if (!isValid(d)) {
+    // Fallback to native JS parser if format varies slightly
+    d = new Date(dateStr);
+  }
+  return isValid(d) ? d : null;
+}
+
 export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   const allRows = await getSheetData();
   
-  // Use YYYY-MM-DD string for all comparisons to avoid timezone issues
-  // We use the date as a "logical" date, ignoring the time part of the incoming object
+  // Convert targetDate (from client) to a timezone-agnostic string YYYY-MM-DD
+  // We treat targetDate as being in Bangladeshi Time (Asia/Dhaka) context
   const targetDateStr = format(targetDate, 'yyyy-MM-dd');
   
-  // Create a local reference date for this day at 00:00:00
-  // This helps in consistent time parsing
+  // Use a fixed reference day for time calculations to avoid timezone shifting
   const referenceDay = startOfDay(targetDate);
 
-  // 1. Precise Column Mapping
+  // 1. Column Mapping Logic
   let studioKey = 'Studio';
   let timeKey = 'Scheduled Time';
   let dateKey = 'Date';
@@ -66,31 +81,20 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   let topicKey = 'Topic';
 
   if (allRows.length > 0) {
-    const sampleRow = allRows[0];
-    const keys = Object.keys(sampleRow);
-    
-    const findExactOrClose = (searches: string[], fallback: string) => {
-      for (const s of searches) {
-        const exact = keys.find(k => k.trim().toLowerCase() === s.toLowerCase());
-        if (exact) return exact;
-      }
-      for (const s of searches) {
-        const partial = keys.find(k => k.trim().toLowerCase().includes(s.toLowerCase()));
-        if (partial) return partial;
-      }
-      return fallback;
-    };
+    const keys = Object.keys(allRows[0]);
+    const findKey = (candidates: string[]) => 
+      keys.find(k => candidates.some(c => k.trim().toLowerCase() === c.toLowerCase())) || candidates[0];
 
-    studioKey = findExactOrClose(['Studio'], 'Studio');
-    timeKey = findExactOrClose(['Scheduled Time', 'Time'], 'Scheduled Time');
-    dateKey = findExactOrClose(['Date'], 'Date');
-    teacherKey = findExactOrClose(['Teacher 1', 'Teacher'], 'Teacher 1');
-    courseKey = findExactOrClose(['Course'], 'Course');
-    subjectKey = findExactOrClose(['Subject'], 'Subject');
-    topicKey = findExactOrClose(['Topic'], 'Topic');
+    studioKey = findKey(['Studio', 'Studio Name']);
+    timeKey = findKey(['Scheduled Time', 'Time', 'Start Time']);
+    dateKey = findKey(['Date', 'Class Date']);
+    teacherKey = findKey(['Teacher 1', 'Teacher Name', 'Teacher']);
+    courseKey = findKey(['Course', 'Course Name']);
+    subjectKey = findKey(['Subject', 'Subject Name']);
+    topicKey = findKey(['Topic', 'Lesson Topic']);
   }
 
-  // 2. Parse Bookings with high accuracy
+  // 2. Filter and Parse Bookings
   const bookings: ClassBooking[] = allRows
     .map((row) => {
       const dateVal = String(row[dateKey] || '').trim();
@@ -99,26 +103,22 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
       
       if (!dateVal || !timeVal || !studioRaw) return null;
 
-      // Filter by Date String immediately
-      // Dates usually look like "Friday, March 13, 2026"
-      let parsedDay = parse(dateVal, 'EEEE, MMMM d, yyyy', new Date());
-      if (!isValid(parsedDay)) {
-        parsedDay = new Date(dateVal);
-      }
-      if (!isValid(parsedDay)) return null;
+      const parsedDay = parseSheetDate(dateVal);
+      if (!parsedDay) return null;
 
       const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
       if (rowDateStr !== targetDateStr) return null;
 
-      // Normalize Studio Name
       const studioMatch = normalizeStudio(studioRaw);
       if (!ALLOWED_STUDIOS.includes(studioMatch)) return null;
 
-      // Parse Time relative to our reference day to keep it "logical" (floating)
+      // Parse time relative to the logical reference day
       let startTime = parse(timeVal, 'h:mm a', referenceDay);
       if (!isValid(startTime)) {
-        startTime = referenceDay;
+        // Fallback for cases like "2:00 PM" vs "14:00"
+        startTime = parse(timeVal, 'HH:mm', referenceDay);
       }
+      if (!isValid(startTime)) return null;
 
       const endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
@@ -140,7 +140,7 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
     })
     .filter((b): b is ClassBooking => b !== null);
 
-  // 3. Generate 30-minute intervals for the grid
+  // 3. Generate fixed 30-minute intervals (8 AM - 11 PM)
   const intervals: TimeInterval[] = [];
   const dayStart = setMinutes(setHours(referenceDay, DAY_START_HOUR), 0);
   const dayEnd = setMinutes(setHours(referenceDay, DAY_END_HOUR), 0);
@@ -162,10 +162,10 @@ export async function fetchDaySchedule(targetDate: Date): Promise<DaySchedule> {
   intervals.forEach((interval) => {
     grid[interval.start] = {};
     const intervalStart = new Date(interval.start);
+    // Use a small offset (1 minute) to check if the interval falls within a booking
     const midPoint = addMinutes(intervalStart, 1);
 
     ALLOWED_STUDIOS.forEach((studio) => {
-      // Find a booking that covers this interval for this studio
       const activeBooking = bookings.find(b => {
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);

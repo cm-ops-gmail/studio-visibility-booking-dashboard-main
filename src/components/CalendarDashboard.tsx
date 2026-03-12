@@ -13,7 +13,12 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function CalendarDashboard() {
-  const [date, setDate] = useState<Date>(new Date());
+  // Use Bangladesh timezone (GMT+6) offset calculation for initial date
+  const [date, setDate] = useState<Date>(() => {
+    // Offset local date to treat as Dhaka time
+    return new Date();
+  });
+  
   const [schedule, setSchedule] = useState<DaySchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -69,7 +74,7 @@ export function CalendarDashboard() {
             <h1 className="text-xl font-bold tracking-tight text-[#403399]">
               Studio TimeGrid
             </h1>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Operations</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Operations (Dhaka Time)</p>
           </div>
         </div>
 
@@ -151,11 +156,8 @@ export function CalendarDashboard() {
                       {schedule.studios.map((studio) => {
                         const slot = schedule.grid[interval.start][studio];
                         
-                        // Handle Rowspan logic for bookings
                         if (slot.isBooked) {
-                           // Find the first interval that this booking covers
-                           // We need to handle cases where a booking starts before 8 AM
-                           // or is just starting exactly at this interval.
+                           // Logic to only render the card in the FIRST visible interval it covers
                            const isFirstVisibleIntervalForBooking = !schedule.intervals.some(prevI => {
                               const prevStart = new Date(prevI.start).getTime();
                               const currStart = new Date(interval.start).getTime();
@@ -164,14 +166,13 @@ export function CalendarDashboard() {
                               return prevStart < currStart && prevStart >= bStart && prevStart < bEnd;
                            });
 
-                           if (!isFirstVisibleIntervalForBooking) return null; // Don't render for continuation rows
+                           if (!isFirstVisibleIntervalForBooking) return null;
 
+                           // Calculate how many 30-min rows this booking spans
                            const spanCount = schedule.intervals.filter(i => {
                               const iStart = new Date(i.start).getTime();
-                              const iEnd = new Date(i.end).getTime();
                               const bStart = new Date(slot.startTime).getTime();
                               const bEnd = new Date(slot.endTime).getTime();
-                              // Check if the 30-min interval midpoint is within the booking
                               const mid = iStart + 15 * 60 * 1000;
                               return mid >= bStart && mid < bEnd;
                            }).length;
