@@ -1,4 +1,3 @@
-
 import { google } from 'googleapis';
 
 const SPREADSHEET_ID = '13H2FFJ8WzKbis-Ud9SXlea9NNTM6exnOaguML8MVZI4';
@@ -29,8 +28,11 @@ export async function getSheetData() {
     const rows = response.data.values;
     if (!rows || rows.length === 0) return [];
 
+    // Column headers are in A1 (index 0)
     const headers = rows[0];
-    return rows.slice(1).map((row, index) => {
+    
+    // Data starts from A3 (index 2)
+    return rows.slice(2).map((row, index) => {
       const obj: any = { id: `row-${index}` };
       headers.forEach((header, i) => {
         obj[header] = row[i];
