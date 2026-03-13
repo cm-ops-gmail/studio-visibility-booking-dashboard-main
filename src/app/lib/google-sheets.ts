@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 
 const SPREADSHEET_ID = '13H2FFJ8WzKbis-Ud9SXlea9NNTM6exnOaguML8MVZI4';
 const SHEET_NAME = 'Daywise_Class_OPS';
+const REQUESTS_SHEET_NAME = 'Requests';
 
 // Credentials provided in user request
 const CREDENTIALS = {
@@ -16,22 +17,20 @@ export async function getSheetData() {
   try {
     const auth = new google.auth.GoogleAuth({
       credentials: CREDENTIALS,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:ZZ`, // Expanded range to capture all possible columns
+      range: `${SHEET_NAME}!A:ZZ`,
     });
 
     const rows = response.data.values;
     if (!rows || rows.length < 3) return [];
 
-    // Column headers are in row 1 (index 0).
     const headers = (rows[0] || []).map(h => String(h || '').trim());
     
-    // Data starts from row 3 (index 2), skipping row 2
     return rows.slice(2)
       .filter(row => row && row.length > 0)
       .map((row, index) => {
@@ -46,5 +45,90 @@ export async function getSheetData() {
   } catch (error) {
     console.error('Error fetching google sheet data:', error);
     return [];
+  }
+}
+
+export async function getRequestsData() {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: CREDENTIALS,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${REQUESTS_SHEET_NAME}!A:G`,
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) return [];
+
+    const headers = rows[0].map(h => String(h || '').trim());
+    return rows.slice(1).map((row) => {
+      const obj: any = {};
+      headers.forEach((header, i) => {
+        obj[header] = row[i];
+      });
+      return obj;
+    });
+  } catch (error) {
+    console.error('Error fetching requests from sheet:', error);
+    return [];
+  }
+}
+
+export async function appendRequestData(data: string[]) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: CREDENTIALS,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${REQUESTS_SHEET_NAME}!A:G`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [data],
+      },
+    });
+  } catch (error) {
+    console.error('Error appending request to sheet:', error);
+  }
+}
+
+export async function updateRequestStatusInSheet(id: string, status: string) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: CREDENTIALS,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${REQUESTS_SHEET_NAME}!A:A`,
+    });
+    
+    const rows = response.data.values;
+    if (!rows) return;
+    
+    const rowIndex = rows.findIndex(row => row[0] === id);
+    if (rowIndex === -1) return;
+
+    // Status is in column F (index 5)
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${REQUESTS_SHEET_NAME}!F${rowIndex + 1}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[status]],
+      },
+    });
+  } catch (error) {
+    console.error('Error updating status in sheet:', error);
   }
 }
