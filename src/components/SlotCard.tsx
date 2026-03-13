@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Clock, Layers, ExternalLink, History, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Clock, Layers, ExternalLink, History, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { isBefore, parse, isValid } from 'date-fns';
@@ -61,24 +61,32 @@ export function SlotCard({ slot }: SlotCardProps) {
   const handleRequestBooking = async () => {
     setIsSubmitting(true);
     try {
+      // 1. Submit internal request for the dashboard state
       await submitBookingRequest({
         studio: slot.studio,
         date: slot.date,
         startTime: slot.startTime,
         duration: selectedDuration,
       });
+
+      // 2. Redirect to the external form link provided by the user
+      // Placeholder link - Replace with your actual Microsoft Form / Google Form link
+      const formLink = "https://forms.office.com/r/your-form-id"; 
+      window.open(formLink, '_blank');
+
       toast({
-        title: "Request Submitted",
-        description: "Your booking is waiting for admin approval.",
+        title: "Redirecting to Form",
+        description: "Local request recorded. Please complete the details in the opened form.",
       });
+
       setIsDialogOpen(false);
-      // Refresh the page to show the overlay state
+      // Refresh to show the "PENDING" state immediately in the grid
       window.location.reload();
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Submission Failed",
-        description: "Could not submit your request. Please try again.",
+        description: "Could not process request. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -246,9 +254,16 @@ export function SlotCard({ slot }: SlotCardProps) {
                 <Button 
                   onClick={handleRequestBooking} 
                   disabled={isSubmitting}
-                  className="w-full h-12 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-widest"
+                  className="w-full h-12 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-widest flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "CONFIRM REQUEST"}
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <ExternalLink className="w-4 h-4" />
+                      REQUEST A BOOKING DEMO
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
