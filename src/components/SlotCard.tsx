@@ -101,14 +101,16 @@ export function SlotCard({ slot }: SlotCardProps) {
     return (
       <Card className={cn(
         "h-full min-h-full border-none bg-zinc-900/80 hover:bg-zinc-800 shadow-2xl transition-all duration-500 group relative overflow-hidden flex flex-col rounded-2xl ring-1",
-        isPending ? "ring-yellow-500" : "ring-white/5",
-        isExpired ? "hover:ring-sky-400/40" : (isPending ? "hover:ring-yellow-500/80" : "hover:ring-red-500/40")
+        isPending ? "ring-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : "ring-white/5",
+        isPending 
+          ? "hover:ring-yellow-400" 
+          : (isExpired ? "hover:ring-sky-400/40" : "hover:ring-red-500/40")
       )}>
         <div className={cn(
           "absolute left-0 top-0 bottom-0 w-1.5 group-hover:w-2 transition-all duration-500",
-          isExpired 
-            ? "bg-sky-500 shadow-[2px_0_15px_rgba(56,189,248,0.4)]" 
-            : (isPending ? "bg-yellow-500 shadow-[2px_0_15px_rgba(234,179,8,0.4)]" : "bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]")
+          isPending 
+            ? "bg-yellow-500 shadow-[2px_0_15px_rgba(234,179,8,0.4)]" 
+            : (isExpired ? "bg-sky-500 shadow-[2px_0_15px_rgba(56,189,248,0.4)]" : "bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]")
         )} />
         
         <CardContent className="p-3 flex flex-col gap-3 h-full relative z-10">
@@ -117,9 +119,9 @@ export function SlotCard({ slot }: SlotCardProps) {
               <div className="flex items-center gap-1.5 flex-wrap">
                  <Badge variant="outline" className={cn(
                    "text-[8px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-md",
-                   isExpired 
-                    ? "text-sky-400 border-sky-400/40 bg-sky-400/10" 
-                    : (isPending ? "text-yellow-500 border-yellow-500/40 bg-yellow-500/10" : "text-white border-red-500/40 bg-red-500/10")
+                   isPending 
+                    ? "text-yellow-500 border-yellow-500/40 bg-yellow-500/10" 
+                    : (isExpired ? "text-sky-400 border-sky-400/40 bg-sky-400/10" : "text-white border-red-500/40 bg-red-500/10")
                  )}>
                    {slot.productType || 'CLASS'}
                  </Badge>
@@ -128,7 +130,7 @@ export function SlotCard({ slot }: SlotCardProps) {
                       PENDING APPROVAL
                     </Badge>
                  )}
-                 {isExpired && (
+                 {(isExpired && !isPending) && (
                     <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.1em] text-sky-400 border-sky-400/40 bg-sky-400/10 px-2 py-0.5 rounded-md">
                       EXPIRED
                     </Badge>
@@ -140,7 +142,9 @@ export function SlotCard({ slot }: SlotCardProps) {
               
               <h3 className={cn(
                 "font-black text-xs leading-tight transition-colors tracking-tight line-clamp-2 uppercase",
-                isExpired ? "text-zinc-400 group-hover:text-sky-400" : (isPending ? "text-yellow-500" : "text-white group-hover:text-red-500")
+                isPending 
+                  ? "text-yellow-500" 
+                  : (isExpired ? "text-zinc-400 group-hover:text-sky-400" : "text-white group-hover:text-red-500")
               )}>
                 {slot.subject}
               </h3>
@@ -148,7 +152,7 @@ export function SlotCard({ slot }: SlotCardProps) {
             
             {slot.topic && (
               <div className="flex items-start gap-2 p-2 rounded-xl bg-black/40 border border-white/5 backdrop-blur-sm">
-                <Layers className={cn("w-3 h-3 shrink-0 mt-0.5", isExpired ? "text-sky-400/60" : "text-red-500/60")} />
+                <Layers className={cn("w-3 h-3 shrink-0 mt-0.5", isPending ? "text-yellow-500/60" : (isExpired ? "text-sky-400/60" : "text-red-500/60"))} />
                 <p className="text-[9px] text-white font-bold leading-relaxed line-clamp-2 italic opacity-80">
                   {slot.topic}
                 </p>
@@ -160,7 +164,7 @@ export function SlotCard({ slot }: SlotCardProps) {
             <div className="flex items-center gap-2 min-w-0">
                 <div className={cn(
                   "w-8 h-8 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg",
-                  isExpired ? "group-hover:bg-sky-500" : (isPending ? "group-hover:bg-yellow-500" : "group-hover:bg-red-500")
+                  isPending ? "group-hover:bg-yellow-500" : (isExpired ? "group-hover:bg-sky-500" : "group-hover:bg-red-500")
                 )}>
                   <User className="w-4 h-4 text-white" />
                 </div>
@@ -173,7 +177,7 @@ export function SlotCard({ slot }: SlotCardProps) {
             </div>
             {timeRangeLabel && (
                 <div className="bg-black/60 border border-zinc-800 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-inner">
-                  <Clock className={cn("w-3 h-3", isExpired ? "text-sky-400" : (isPending ? "text-yellow-500" : "text-red-500"))} />
+                  <Clock className={cn("w-3 h-3", isPending ? "text-yellow-500" : (isExpired ? "text-sky-400" : "text-red-500"))} />
                   <span className="text-[8px] font-black text-white whitespace-nowrap tracking-tighter">
                     {timeRangeLabel}
                   </span>
