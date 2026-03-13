@@ -25,6 +25,13 @@ export default function AdminPage() {
     }
   };
 
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUsername('');
+    setPassword('');
+    window.location.href = '/';
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
@@ -72,5 +79,5 @@ export default function AdminPage() {
     );
   }
 
-  return <AdminDashboard />;
+  return <AdminDashboard onLogout={handleLogout} />;
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,12 +7,16 @@ import { BookingRequest } from '@/app/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Clock, Calendar, Layers, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Calendar, Layers, Loader2, RefreshCw, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-export function AdminDashboard() {
+interface AdminDashboardProps {
+  onLogout?: () => void;
+}
+
+export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -54,10 +59,16 @@ export function AdminDashboard() {
             </h1>
             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em]">Pending Requests: {pendingCount}</p>
           </div>
-          <Button onClick={loadRequests} variant="outline" className="h-10 rounded-xl gap-2 border-zinc-800 bg-zinc-900 hover:bg-zinc-800">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            REFRESH QUEUE
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={loadRequests} variant="outline" className="h-10 rounded-xl gap-2 border-zinc-800 bg-zinc-900 hover:bg-zinc-800">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              REFRESH QUEUE
+            </Button>
+            <Button onClick={onLogout} variant="destructive" className="h-10 rounded-xl gap-2 font-black text-xs uppercase tracking-widest shadow-lg shadow-red-900/20">
+              <LogOut className="w-4 h-4" />
+              LOG OUT
+            </Button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 gap-6">

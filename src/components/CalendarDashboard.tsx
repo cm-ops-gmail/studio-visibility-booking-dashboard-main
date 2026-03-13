@@ -1,11 +1,12 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
-import { format, addDays, subDays } from 'date-fns';
+import { format, addDays, subDays, isBefore, parse, isValid } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -94,6 +95,7 @@ export function CalendarDashboard() {
     const empty = { bookedByStudio: {}, availableByStudio: {} };
     if (!schedule) return empty;
     
+    const now = new Date();
     const bookedByStudio: Record<string, { count: number; slots: any[] }> = {};
     const availableByStudio: Record<string, { count: number; slots: any[] }> = {};
 
@@ -120,18 +122,31 @@ export function CalendarDashboard() {
                 time: `${slot.startTimeLabel} - ${slot.endTimeLabel}`,
                 duration: slot.durationLabel,
                 intervalStart: interval.start,
-                studioName: studio
+                studioName: studio,
+                requestStatus: slot.requestStatus
               });
             }
           }
         } else {
+          // Check for expiration
+          let isExpired = false;
+          try {
+            const referenceDate = parse(slot.date, 'yyyy-MM-dd', new Date());
+            const slotDateTime = parse(slot.scheduledTime, 'h:mm a', referenceDate);
+            if (!isValid(slotDateTime)) isExpired = isBefore(new Date(slot.startTime), now);
+            else isExpired = isBefore(slotDateTime, now);
+          } catch (e) {
+            isExpired = isBefore(new Date(slot.startTime), now);
+          }
+
           if (availableByStudio[studio]) {
             availableByStudio[studio].count++;
             availableByStudio[studio].slots.push({
               id: slot.id,
               time: slot.startTimeLabel || '',
               intervalStart: interval.start,
-              studioName: studio
+              studioName: studio,
+              isExpired
             });
           }
         }
@@ -220,6 +235,26 @@ export function CalendarDashboard() {
           </Button>
         </div>
 
+        {/* Legend */}
+        <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-zinc-900/40 border border-zinc-800 rounded-2xl">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="text-[8px] font-black uppercase text-zinc-400">Available</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+            <span className="text-[8px] font-black uppercase text-zinc-400">Pending</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            <span className="text-[8px] font-black uppercase text-zinc-400">Booked</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-sky-500" />
+            <span className="text-[8px] font-black uppercase text-zinc-400">Expired</span>
+          </div>
+        </div>
+
         <div className="flex items-center gap-6 flex-wrap justify-center">
           <div className="flex items-center gap-3">
               <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -268,14 +303,14 @@ export function CalendarDashboard() {
 
       {/* Summary Cards */}
       <div className="shrink-0 px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-950">
-          <Card className="bg-zinc-900/40 border-zinc-800 shadow-xl ring-1 ring-red-500/10 flex flex-col">
-              <CardHeader className="py-3 border-b border-zinc-800 bg-red-500/5">
+          <Card className="bg-zinc-900/40 border-zinc-800 shadow-xl ring-1 ring-white/5 flex flex-col">
+              <CardHeader className="py-3 border-b border-zinc-800 bg-white/5">
                   <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                       <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-red-500" />
-                          Booked Slots
+                          <CheckCircle2 className="w-4 h-4 text-orange-500" />
+                          Occupied Slots
                       </div>
-                      <span className="text-xl text-red-500">
+                      <span className="text-xl text-white">
                         {filterStudio === 'all' ? totalBookedCount : (summaryData.bookedByStudio[filterStudio]?.count || 0)}
                       </span>
                   </CardTitle>
@@ -288,7 +323,7 @@ export function CalendarDashboard() {
                               .map(([studio, data]: [string, any]) => (
                                   <div key={studio} className="flex items-center justify-between border-b border-zinc-800/30 pb-2 last:border-0 last:pb-0">
                                       <span className="text-[10px] font-black text-white uppercase tracking-tight">{studio}</span>
-                                      <span className="text-[10px] font-black text-red-500 uppercase">{data.count} SLOTS BOOKED</span>
+                                      <span className="text-[10px] font-black text-red-500 uppercase">{data.count} SLOTS OCCUPIED</span>
                                   </div>
                               ))
                       ) : (
@@ -296,25 +331,31 @@ export function CalendarDashboard() {
                               <div 
                                 key={b.id} 
                                 onClick={() => scrollToSlot(b.intervalStart, b.studioName)}
-                                className="flex flex-col border-b border-zinc-800/30 pb-2 last:border-0 last:pb-0 cursor-pointer hover:bg-red-500/5 p-1 rounded-lg transition-all"
+                                className="flex flex-col border-b border-zinc-800/30 pb-2 last:border-0 last:pb-0 cursor-pointer hover:bg-white/5 p-1 rounded-lg transition-all"
                               >
                                   <div className="flex items-center justify-between">
-                                      <span className="text-[10px] font-black text-white uppercase tracking-tight truncate mr-2">{b.subject}</span>
-                                      <span className="text-[9px] font-black text-red-500 whitespace-nowrap">{b.time}</span>
+                                      <span className={cn(
+                                        "text-[10px] font-black uppercase tracking-tight truncate mr-2",
+                                        b.requestStatus === 'pending' ? "text-yellow-500" : "text-white"
+                                      )}>{b.subject}</span>
+                                      <span className={cn(
+                                        "text-[9px] font-black whitespace-nowrap",
+                                        b.requestStatus === 'pending' ? "text-yellow-500" : "text-red-500"
+                                      )}>{b.time}</span>
                                   </div>
                                   <span className="text-[8px] font-black text-zinc-500 uppercase tracking-[0.2em]">{b.duration}</span>
                               </div>
                           ))
                       )}
                       {(filterStudio === 'all' ? totalBookedCount : (summaryData.bookedByStudio[filterStudio]?.count || 0)) === 0 && (
-                          <p className="text-[9px] text-zinc-600 font-black text-center py-6 uppercase tracking-widest">No matching bookings</p>
+                          <p className="text-[9px] text-zinc-600 font-black text-center py-6 uppercase tracking-widest">No matching records</p>
                       )}
                   </div>
               </CardContent>
           </Card>
 
-          <Card className="bg-zinc-900/40 border-zinc-800 shadow-xl ring-1 ring-emerald-500/10 flex flex-col">
-              <CardHeader className="py-3 border-b border-zinc-800 bg-emerald-500/5">
+          <Card className="bg-zinc-900/40 border-zinc-800 shadow-xl ring-1 ring-white/5 flex flex-col">
+              <CardHeader className="py-3 border-b border-zinc-800 bg-white/5">
                   <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                       <div className="flex items-center gap-2">
                           <CircleDashed className="w-4 h-4 text-emerald-500" />
@@ -333,7 +374,7 @@ export function CalendarDashboard() {
                               .map(([studio, data]: [string, any]) => (
                                   <div key={studio} className="flex items-center justify-between border-b border-zinc-800/30 pb-2 last:border-0 last:pb-0">
                                       <span className="text-[10px] font-black text-white uppercase tracking-tight">{studio}</span>
-                                      <span className="text-[10px] font-black text-emerald-500 uppercase">{data.count} SLOTS AVAILABLE</span>
+                                      <span className="text-[10px] font-black text-emerald-500 uppercase">{data.count} SLOTS OPEN</span>
                                   </div>
                               ))
                       ) : (
@@ -342,9 +383,14 @@ export function CalendarDashboard() {
                                   <div 
                                     key={`${a.id}-${i}`} 
                                     onClick={() => scrollToSlot(a.intervalStart, a.studioName)}
-                                    className="flex items-center justify-center bg-zinc-950/50 p-2 rounded-lg border border-zinc-800 cursor-pointer hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all"
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all",
+                                      a.isExpired 
+                                        ? "bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20" 
+                                        : "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
+                                    )}
                                   >
-                                      <span className="text-[9px] font-black text-emerald-500">{a.time}</span>
+                                      <span className="text-[9px] font-black">{a.time}</span>
                                   </div>
                               ))}
                           </div>
