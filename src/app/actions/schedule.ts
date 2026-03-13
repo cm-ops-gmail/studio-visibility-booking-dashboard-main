@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
@@ -71,7 +70,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
   const allRows = await getSheetData();
   const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
   
-  // Fetch memory overlay for pending/approved requests
+  // Fetch overlay for pending/approved requests from the "Requests" tab
   const requestsOverlay = await getActiveRequestsOverlay();
 
   let studioKey = 'Studio', timeKey = 'Scheduled Time', dateKey = 'Date', 
@@ -172,7 +171,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     const midPoint = addMinutes(intervalStart, 1);
 
     ALLOWED_STUDIOS.forEach((studio) => {
-      // 1. Check Sheet Data
+      // 1. Check Main Sheet Data
       const activeSheetBooking = sheetBookings.find(b => {
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
@@ -180,15 +179,17 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         return midPoint >= bStart && midPoint < bEnd;
       });
 
-      // 2. Check Memory Requests Overlay
+      // 2. Check Requests Overlay
       const activeRequest = requestsOverlay.find(req => {
         if (req.studio !== studio || req.date !== targetDateStr) return false;
         const reqStart = new Date(req.startTime);
-        // Calculate end based on duration label
-        let durationHrs = 0.5;
-        if (req.duration === '1 hr') durationHrs = 1;
+        
+        // Calculate end based on exact duration string from SlotCard
+        let durationHrs = 1;
+        if (req.duration === '30 mins') durationHrs = 0.5;
         if (req.duration === '1 hr 30 mins') durationHrs = 1.5;
         if (req.duration === '2 hrs') durationHrs = 2;
+        
         const reqEnd = addHours(reqStart, durationHrs);
         return midPoint >= reqStart && midPoint < reqEnd;
       });
@@ -204,7 +205,11 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         teacher: 'Pending',
         productType: 'STUDIO BOOKING',
         startTime: activeRequest.startTime,
-        endTime: addHours(new Date(activeRequest.startTime), activeRequest.duration.includes('2') ? 2 : (activeRequest.duration.includes('1.5') ? 1.5 : 1)).toISOString(),
+        endTime: addHours(new Date(activeRequest.startTime), 
+          activeRequest.duration === '30 mins' ? 0.5 : 
+          activeRequest.duration === '1 hr 30 mins' ? 1.5 : 
+          activeRequest.duration === '2 hrs' ? 2 : 1
+        ).toISOString(),
         startTimeLabel: format(new Date(activeRequest.startTime), 'h:mm a'),
         isBooked: true,
         requestStatus: activeRequest.status,
@@ -263,19 +268,4 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     intervals,
     grid,
   };
-}
-
-export async function getSmartSuggestion(booking: ClassBooking, existingBookings: any[]) {
-    return await suggestSmartSlotDescription({
-        studioName: booking.studio,
-        date: booking.date,
-        availableSlotStartTime: booking.startTimeLabel || format(new Date(booking.startTime), 'h:mm a'),
-        availableSlotEndTime: booking.endTimeLabel || format(new Date(booking.endTime), 'h:mm a'),
-        existingBookings: existingBookings.map(b => ({
-            subject: b.subject,
-            teacher: b.teacher,
-            startTime: b.startTimeLabel || format(new Date(b.startTime), 'h:mm a'),
-            endTime: b.endTimeLabel || format(new Date(b.endTime), 'h:mm a')
-        }))
-    });
 }

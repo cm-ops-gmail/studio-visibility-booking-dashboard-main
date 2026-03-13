@@ -9,18 +9,22 @@ export async function submitBookingRequest(request: Omit<BookingRequest, 'id' | 
   const status = 'pending';
   const requestedAt = new Date().toISOString();
   
-  // Columns: ID, Studio, Date, StartTime, Duration, Status, RequestedAt
-  await appendRequestData([
-    id,
-    request.studio,
-    request.date,
-    request.startTime,
-    request.duration,
-    status,
-    requestedAt
-  ]);
-
-  return { success: true, request: { ...request, id, status, requestedAt } };
+  try {
+    // Columns: ID, Studio, Date, StartTime, Duration, Status, RequestedAt
+    await appendRequestData([
+      id,
+      request.studio,
+      request.date,
+      request.startTime,
+      request.duration,
+      status,
+      requestedAt
+    ]);
+    return { success: true, request: { ...request, id, status, requestedAt } };
+  } catch (error) {
+    console.error('Failed to submit booking request to sheet:', error);
+    throw new Error('Database submission failed');
+  }
 }
 
 export async function getAllRequests(): Promise<BookingRequest[]> {
@@ -28,24 +32,30 @@ export async function getAllRequests(): Promise<BookingRequest[]> {
   const twelveHoursAgo = subHours(new Date(), 12);
 
   return data.map((req: any) => {
-    let status = req.Status as 'pending' | 'approved' | 'rejected';
+    let status = (req.Status || 'pending') as 'pending' | 'approved' | 'rejected';
     const requestedAt = req.RequestedAt;
 
     // Handle 12-hour expiration for pending requests
-    if (status === 'pending' && requestedAt && isBefore(new Date(requestedAt), twelveHoursAgo)) {
-      status = 'rejected';
+    if (status === 'pending' && requestedAt) {
+      try {
+        if (isBefore(new Date(requestedAt), twelveHoursAgo)) {
+          status = 'rejected';
+        }
+      } catch (e) {
+        // Fallback if date parsing fails
+      }
     }
 
     return {
-      id: req.ID,
-      studio: req.Studio,
-      date: req.Date,
-      startTime: req.StartTime,
-      duration: req.Duration,
+      id: req.ID || '',
+      studio: req.Studio || '',
+      date: req.Date || '',
+      startTime: req.StartTime || '',
+      duration: req.Duration || '1 hr',
       status: status,
-      requestedAt: requestedAt,
+      requestedAt: requestedAt || '',
     };
-  });
+  }).filter(req => req.id !== '');
 }
 
 export async function updateRequestStatus(id: string, status: 'approved' | 'rejected') {
@@ -55,6 +65,6 @@ export async function updateRequestStatus(id: string, status: 'approved' | 'reje
 
 export async function getActiveRequestsOverlay(): Promise<BookingRequest[]> {
   const all = await getAllRequests();
-  // We only show pending and approved on the calendar
-  return all.filter(req => req.status !== 'rejected');
+  // We only show pending and approved on the calendar to represent "occupied" slots
+  return all.filter(req => req.status === 'pending' || req.status === 'approved');
 }
