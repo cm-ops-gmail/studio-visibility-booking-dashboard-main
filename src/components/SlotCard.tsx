@@ -69,14 +69,13 @@ export function SlotCard({ slot }: SlotCardProps) {
         duration: selectedDuration,
       });
 
-      // 2. Redirect to the external form link provided by the user
-      // Placeholder link - Replace with your actual Microsoft Form / Google Form link
-      const formLink = "https://forms.office.com/r/your-form-id"; 
+      // 2. Redirect to the provided Google Form link
+      const formLink = "https://forms.gle/bf4WzXLC9KCoD2WG8"; 
       window.open(formLink, '_blank');
 
       toast({
         title: "Redirecting to Form",
-        description: "Local request recorded. Please complete the details in the opened form.",
+        description: "Local request recorded. Please complete the details in the Google Form.",
       });
 
       setIsDialogOpen(false);
