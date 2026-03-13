@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Clock, Calendar, Layers, Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export function AdminDashboard() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
