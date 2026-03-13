@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { User, Clock, Layers, ExternalLink, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { isBefore, parseISO } from 'date-fns';
+import { isBefore, parse, isValid } from 'date-fns';
 
 interface SlotCardProps {
   slot: ClassBooking;
@@ -19,12 +19,33 @@ export function SlotCard({ slot }: SlotCardProps) {
 
   useEffect(() => {
     setNow(new Date());
-    // Optional: Update every minute to keep the "Expired" status fresh
     const interval = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(interval);
   }, []);
 
-  const isExpired = now ? isBefore(parseISO(slot.startTime), now) : false;
+  // Determine if the slot has passed based on local time
+  const isExpired = useMemo(() => {
+    if (!now) return false;
+    
+    try {
+      // Use the raw date and scheduled time strings to construct a local comparison date
+      // This avoids UTC offset issues from the server-generated ISO string
+      const datePart = slot.date; // e.g., "2024-03-24"
+      const timePart = slot.scheduledTime; // e.g., "10:00 AM"
+      
+      const referenceDate = parse(datePart, 'yyyy-MM-dd', new Date());
+      const slotDateTime = parse(timePart, 'h:mm a', referenceDate);
+      
+      if (!isValid(slotDateTime)) {
+        // Fallback to ISO string if parsing fails
+        return isBefore(new Date(slot.startTime), now);
+      }
+      
+      return isBefore(slotDateTime, now);
+    } catch (e) {
+      return isBefore(new Date(slot.startTime), now);
+    }
+  }, [now, slot.date, slot.scheduledTime, slot.startTime]);
 
   const timeRangeLabel = slot.startTimeLabel && slot.endTimeLabel 
     ? `${slot.startTimeLabel} - ${slot.endTimeLabel}`
