@@ -60,7 +60,6 @@ export function SlotCard({ slot }: SlotCardProps) {
   const handleRequestBooking = async () => {
     setIsSubmitting(true);
     try {
-      // 1. Submit internal request for the dashboard state
       await submitBookingRequest({
         studio: slot.studio,
         date: slot.date,
@@ -68,7 +67,6 @@ export function SlotCard({ slot }: SlotCardProps) {
         duration: selectedDuration,
       });
 
-      // 2. Redirect to the provided Google Form link
       const formLink = "https://forms.gle/bf4WzXLC9KCoD2WG8"; 
       window.open(formLink, '_blank');
 
@@ -78,7 +76,6 @@ export function SlotCard({ slot }: SlotCardProps) {
       });
 
       setIsDialogOpen(false);
-      // Refresh to show the "PENDING" state immediately in the grid
       window.location.reload();
     } catch (error) {
       toast({
@@ -113,10 +110,10 @@ export function SlotCard({ slot }: SlotCardProps) {
             : (isExpired ? "bg-sky-500 shadow-[2px_0_15px_rgba(56,189,248,0.4)]" : "bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]")
         )} />
         
-        <CardContent className="p-3 flex flex-col gap-3 h-full relative z-10">
-          <div className="space-y-2 flex-1">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 flex-wrap">
+        <CardContent className="p-3 flex flex-col gap-3 h-full relative z-10 text-center items-center justify-center">
+          <div className="space-y-2 flex-1 flex flex-col justify-center items-center">
+            <div className="flex flex-col gap-1.5 items-center">
+              <div className="flex items-center gap-1.5 flex-wrap justify-center">
                  <Badge variant="outline" className={cn(
                    "text-[8px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-md",
                    isPending 
@@ -135,9 +132,6 @@ export function SlotCard({ slot }: SlotCardProps) {
                       EXPIRED
                     </Badge>
                  )}
-                 <span className="text-[8px] font-black uppercase tracking-widest text-white/40">
-                   {slot.course}
-                 </span>
               </div>
               
               <h3 className={cn(
@@ -151,16 +145,16 @@ export function SlotCard({ slot }: SlotCardProps) {
             </div>
             
             {slot.topic && (
-              <div className="flex items-start gap-2 p-2 rounded-xl bg-black/40 border border-white/5 backdrop-blur-sm">
+              <div className="flex items-start gap-2 p-2 rounded-xl bg-black/40 border border-white/5 backdrop-blur-sm max-w-full">
                 <Layers className={cn("w-3 h-3 shrink-0 mt-0.5", isPending ? "text-yellow-500/60" : (isExpired ? "text-sky-400/60" : "text-red-500/60"))} />
-                <p className="text-[9px] text-white font-bold leading-relaxed line-clamp-2 italic opacity-80">
+                <p className="text-[9px] text-white font-bold leading-relaxed line-clamp-2 italic opacity-80 text-left">
                   {slot.topic}
                 </p>
               </div>
             )}
           </div>
           
-          <div className="flex items-center justify-between gap-2 mt-auto pt-3 border-t border-white/5">
+          <div className="flex items-center justify-between gap-2 mt-auto pt-3 border-t border-white/5 w-full">
             <div className="flex items-center gap-2 min-w-0">
                 <div className={cn(
                   "w-8 h-8 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg",
@@ -168,7 +162,7 @@ export function SlotCard({ slot }: SlotCardProps) {
                 )}>
                   <User className="w-4 h-4 text-white" />
                 </div>
-                <div className="flex flex-col min-w-0">
+                <div className="flex flex-col min-w-0 items-start">
                     <span className="text-[7px] font-black text-white/30 uppercase tracking-[0.2em]">INSTRUCTOR</span>
                     <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">
                       {slot.teacher || 'TBA'}
@@ -203,7 +197,7 @@ export function SlotCard({ slot }: SlotCardProps) {
           : "bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.03),transparent)]"
       )} />
       
-      <div className="text-center space-y-3 relative z-10 w-full px-2">
+      <div className="text-center space-y-3 relative z-10 w-full px-2 flex flex-col items-center justify-center h-full">
         <div className={cn(
           "text-[9px] font-black px-3 uppercase tracking-[0.3em] flex items-center gap-2 justify-center transition-colors",
           isExpired 
@@ -225,7 +219,7 @@ export function SlotCard({ slot }: SlotCardProps) {
                 className="w-full rounded-xl h-9 text-[9px] font-black uppercase tracking-[0.2em] bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all border-emerald-500/30 hover:border-emerald-500 px-4 flex items-center justify-center gap-2 shadow-lg"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Request a Booking
+                FILL OUT THE BOOKING FORM
               </Button>
             </DialogTrigger>
             <DialogContent className="bg-zinc-950 border-zinc-800 text-white">

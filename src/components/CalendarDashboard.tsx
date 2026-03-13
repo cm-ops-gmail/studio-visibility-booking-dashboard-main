@@ -204,17 +204,17 @@ export function CalendarDashboard() {
       </header>
 
       {/* Operations Bar (Date, Sync, Filters) */}
-      <div className="shrink-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900/50 px-6 py-4 flex flex-col xl:flex-row items-center justify-between gap-6 z-[100]">
-        <div className="flex items-center gap-6 flex-wrap justify-center">
-          {/* Date Selector */}
+      <div className="shrink-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900/50 px-6 py-8 flex flex-col items-center gap-8 z-[100]">
+        {/* Row 1: Date and Sync */}
+        <div className="flex items-center gap-6 flex-wrap justify-center w-full">
           <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
-            <Button variant="ghost" size="icon" onClick={prevDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
-              <ChevronLeft className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={prevDay} className="h-10 w-10 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
+              <ChevronLeft className="h-5 w-5" />
             </Button>
             
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" className="px-6 h-8 font-black text-xs text-white hover:bg-zinc-800 rounded-lg tracking-widest uppercase">
+                <Button variant="ghost" className="px-10 h-10 font-black text-sm text-white hover:bg-zinc-800 rounded-lg tracking-[0.2em] uppercase">
                   {formattedDateLabel}
                 </Button>
               </PopoverTrigger>
@@ -223,45 +223,26 @@ export function CalendarDashboard() {
               </PopoverContent>
             </Popover>
 
-            <Button variant="ghost" size="icon" onClick={nextDay} className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
-              <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={nextDay} className="h-10 w-10 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
 
-          <Button variant="outline" size="sm" onClick={() => date && loadData(date)} disabled={loading} className="h-9 rounded-xl gap-2 border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800 hover:text-white text-[10px] font-black tracking-widest px-4 shadow-lg transition-all">
-            {loading ? <Loader2 className="h-3 w-3 animate-spin text-orange-500" /> : <RefreshCw className="h-3 w-3 text-orange-500" />}
+          <Button variant="outline" onClick={() => date && loadData(date)} disabled={loading} className="h-12 rounded-xl gap-3 border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800 hover:text-white text-xs font-black tracking-[0.2em] px-8 shadow-lg transition-all uppercase">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin text-orange-500" /> : <RefreshCw className="h-4 w-4 text-orange-500" />}
             SYNC DATA
           </Button>
         </div>
 
-        {/* Legend */}
-        <div className="hidden lg:flex items-center gap-4 px-4 py-2 bg-zinc-900/40 border border-zinc-800 rounded-2xl">
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span className="text-[8px] font-black uppercase text-zinc-400">Available</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-            <span className="text-[8px] font-black uppercase text-zinc-400">Pending</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-            <span className="text-[8px] font-black uppercase text-zinc-400">Booked</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-sky-500" />
-            <span className="text-[8px] font-black uppercase text-zinc-400">Expired</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6 flex-wrap justify-center">
-          <div className="flex items-center gap-3">
-              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Layers className="w-3 h-3 text-orange-500" />
+        {/* Row 2: Filters */}
+        <div className="flex items-center gap-10 flex-wrap justify-center w-full">
+          <div className="flex items-center gap-4">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2.5">
+                  <Layers className="w-4 h-4 text-orange-500" />
                   STUDIO
               </label>
               <Select value={filterStudio} onValueChange={setFilterStudio}>
-                  <SelectTrigger className="w-[180px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white uppercase">
+                  <SelectTrigger className="w-[220px] h-11 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black text-white uppercase tracking-widest">
                       <SelectValue placeholder="All Studios" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
@@ -273,13 +254,13 @@ export function CalendarDashboard() {
               </Select>
           </div>
 
-          <div className="flex items-center gap-3">
-              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Filter className="w-3 h-3 text-orange-500" />
+          <div className="flex items-center gap-4">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2.5">
+                  <Filter className="w-4 h-4 text-orange-500" />
                   STATUS
               </label>
               <Select value={filterAvailability} onValueChange={setFilterAvailability}>
-                  <SelectTrigger className="w-[180px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white uppercase">
+                  <SelectTrigger className="w-[220px] h-11 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black text-white uppercase tracking-widest">
                       <SelectValue placeholder="All Slots" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
@@ -292,8 +273,8 @@ export function CalendarDashboard() {
           </div>
 
           {isFiltered && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-[9px] font-black text-red-500 hover:text-white hover:bg-red-500/20 gap-2 rounded-xl px-4 transition-all">
-              <XCircle className="w-3.5 h-3.5" />
+            <Button variant="ghost" onClick={clearFilters} className="h-11 text-[10px] font-black text-red-500 hover:text-white hover:bg-red-500/20 gap-2.5 rounded-xl px-6 transition-all tracking-[0.2em] uppercase">
+              <XCircle className="w-4 h-4" />
               CLEAR ALL
             </Button>
           )}
