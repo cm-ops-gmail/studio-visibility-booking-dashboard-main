@@ -5,7 +5,7 @@ import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays, isBefore, parse, isValid } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info, Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -22,6 +22,7 @@ export function CalendarDashboard() {
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [formattedDateLabel, setFormattedDateLabel] = useState('LOADING...');
+  const [currentTime, setCurrentTime] = useState<string>('');
 
   // Filter States
   const [filterStudio, setFilterStudio] = useState<string>('all');
@@ -34,6 +35,21 @@ export function CalendarDashboard() {
     setDate(now);
     setFormattedDateLabel(format(now, 'MMMM d, yyyy').toUpperCase());
     setIsMounted(true);
+
+    // Live Clock for BD Time
+    const updateTime = () => {
+      const bdTime = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Dhaka',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: true
+      }).format(new Date());
+      setCurrentTime(bdTime);
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const loadData = async (targetDate: Date) => {
@@ -202,6 +218,40 @@ export function CalendarDashboard() {
           </Button>
         </Link>
       </header>
+
+      {/* Hero Monitoring Section */}
+      <section className="shrink-0 px-10 py-12 space-y-4 bg-zinc-950">
+        <div className="flex items-center gap-3">
+          <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse shadow-[0_0_12px_rgba(249,115,22,0.8)]" />
+          <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em]">
+            Real Time MONITORING
+          </span>
+        </div>
+        
+        <div className="space-y-1">
+          <h1 className="text-5xl font-extrabold tracking-tighter text-white">
+            Content Operations
+          </h1>
+          <h2 className="text-4xl font-bold italic text-indigo-400/90 tracking-tighter">
+            Studio Booking and Slot Visibility Dashboard..
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-4 pt-4">
+          <div className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800/80 px-6 py-2 rounded-full shadow-lg">
+            <CalendarDays className="w-4 h-4 text-indigo-400" />
+            <span className="text-[11px] font-black text-zinc-300 uppercase tracking-widest">
+              {date ? format(date, 'MMM do, yyyy') : '---'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800/80 px-6 py-2 rounded-full shadow-lg">
+            <Clock className="w-4 h-4 text-indigo-400" />
+            <span className="text-[11px] font-black text-zinc-300 uppercase tracking-widest">
+              BD Time: {currentTime || '--:--:-- --'}
+            </span>
+          </div>
+        </div>
+      </section>
 
       {/* Operations Bar (Date, Sync, Filters) */}
       <div className="shrink-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900/50 px-6 py-8 flex flex-col items-center gap-8 z-[100]">
