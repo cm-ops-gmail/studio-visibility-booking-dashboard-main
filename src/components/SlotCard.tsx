@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -260,7 +259,7 @@ export function SlotCard({ slot }: SlotCardProps) {
                   ) : (
                     <>
                       <ExternalLink className="w-4 h-4" />
-                      REQUEST A BOOKING DEMO
+                      FILL OUT THE BOOKING FORM
                     </>
                   )}
                 </Button>

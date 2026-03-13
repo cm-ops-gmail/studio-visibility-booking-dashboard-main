@@ -78,9 +78,13 @@ export function CalendarDashboard() {
       return filteredStudios.some((studio) => {
         const slot = schedule.grid[interval.start]?.[studio];
         if (!slot) return false;
-        const matchesAvailability = (filterAvailability === 'all') || 
-                                   (filterAvailability === 'booked' && slot.isBooked) ||
-                                   (filterAvailability === 'available' && !slot.isBooked);
+        
+        const matchesAvailability = 
+          (filterAvailability === 'all') || 
+          (filterAvailability === 'available' && !slot.isBooked) ||
+          (filterAvailability === 'booked' && slot.isBooked && slot.requestStatus !== 'pending') ||
+          (filterAvailability === 'pending' && slot.isBooked && slot.requestStatus === 'pending');
+        
         return matchesAvailability;
       });
     });
@@ -241,13 +245,14 @@ export function CalendarDashboard() {
                   STATUS
               </label>
               <Select value={filterAvailability} onValueChange={setFilterAvailability}>
-                  <SelectTrigger className="w-[160px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white uppercase">
+                  <SelectTrigger className="w-[180px] h-9 rounded-xl bg-zinc-900 border-zinc-800 text-[10px] font-bold text-white uppercase">
                       <SelectValue placeholder="All Slots" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
                       <SelectItem value="all">ALL SLOTS</SelectItem>
                       <SelectItem value="available">AVAILABLE ONLY</SelectItem>
                       <SelectItem value="booked">BOOKED CLASSES</SelectItem>
+                      <SelectItem value="pending">PENDING APPROVAL</SelectItem>
                   </SelectContent>
               </Select>
           </div>
@@ -390,8 +395,11 @@ export function CalendarDashboard() {
                         const slot = schedule.grid[interval.start]?.[studio];
                         if (!slot) return <TableCell key={`${interval.start}-${studio}`} className="p-0 border-b border-zinc-900/10" />;
 
-                        const isVisible = (slot.isBooked && (filterAvailability === 'all' || filterAvailability === 'booked')) ||
-                                        (!slot.isBooked && (filterAvailability === 'all' || filterAvailability === 'available'));
+                        const isVisible = 
+                          (filterAvailability === 'all') || 
+                          (filterAvailability === 'available' && !slot.isBooked) ||
+                          (filterAvailability === 'booked' && slot.isBooked && slot.requestStatus !== 'pending') ||
+                          (filterAvailability === 'pending' && slot.isBooked && slot.requestStatus === 'pending');
 
                         if (!isVisible) {
                            return <TableCell key={`${interval.start}-${studio}`} className="p-0 border-r border-b border-zinc-900/5 bg-transparent" />;
