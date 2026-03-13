@@ -347,7 +347,7 @@ export function CalendarDashboard() {
       </div>
 
       {/* Calendar Section (Dataframe) */}
-      <div className="px-6 pb-12 flex-1 flex flex-col min-h-0">
+      <div className="px-6 pb-6 flex-1 flex flex-col min-h-0">
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-6 bg-zinc-900/20 border border-zinc-900 rounded-[2rem]">
               <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
@@ -361,14 +361,14 @@ export function CalendarDashboard() {
               <Table className="border-separate border-spacing-0 w-full min-w-max">
                 <TableHeader className="sticky top-0 z-[60] bg-zinc-950">
                   <TableRow className="bg-zinc-950 border-none">
-                    <TableHead className="w-[80px] min-w-[80px] sticky top-0 left-0 z-[70] bg-zinc-950 font-black text-orange-500 uppercase tracking-[0.2em] text-center border-r border-b border-zinc-900/50 p-4 text-[9px] shadow-[2px_2px_10px_rgba(0,0,0,0.5)]">
+                    <TableHead className="w-[80px] min-w-[80px] sticky top-0 left-0 z-[70] bg-zinc-950 font-black text-white uppercase tracking-[0.2em] text-center border-r border-b border-zinc-900/50 p-4 text-[9px] shadow-[2px_2px_10px_rgba(0,0,0,0.5)]">
                       <div className="flex flex-col items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-orange-500" />
+                        <Clock className="w-4 h-4 text-white" />
                         TIME
                       </div>
                     </TableHead>
                     {filteredStudios.map((studio) => (
-                      <TableHead key={studio} className="min-w-[220px] font-black text-orange-500 uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-5 px-6 text-[10px] bg-zinc-950 sticky top-0 z-[60] shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+                      <TableHead key={studio} className="min-w-[220px] font-black text-white uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-5 px-6 text-[10px] bg-zinc-950 sticky top-0 z-[60] shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
                         {studio}
                       </TableHead>
                     ))}
@@ -377,7 +377,7 @@ export function CalendarDashboard() {
                 <TableBody>
                   {filteredIntervals.map((interval) => (
                     <TableRow key={interval.start} className="border-none h-16">
-                      <TableCell className="font-black text-orange-500 sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-sm border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-[5px_0_15px_rgba(0,0,0,0.3)]">
+                      <TableCell className="font-black text-white sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-sm border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-[5px_0_15px_rgba(0,0,0,0.3)]">
                         {interval.label}
                       </TableCell>
                       {filteredStudios.map((studio) => {
@@ -426,6 +426,15 @@ export function CalendarDashboard() {
             </div>
           )}
       </div>
+
+      {/* Footer */}
+      <footer className="shrink-0 bg-zinc-950 border-t border-zinc-900 py-10 mt-auto">
+        <div className="flex justify-center items-center">
+          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">
+            © 2026 10 MS CONTENT OPERATIONS. ALL RIGHTS RESERVED.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
