@@ -100,8 +100,9 @@ export function SlotCard({ slot }: SlotCardProps) {
     
     return (
       <Card className={cn(
-        "h-full min-h-full border-none bg-zinc-900/80 hover:bg-zinc-800 shadow-2xl transition-all duration-500 group relative overflow-hidden flex flex-col rounded-2xl ring-1 ring-white/5",
-        isExpired ? "hover:ring-sky-400/40" : (isPending ? "hover:ring-yellow-500/40" : "hover:ring-red-500/40")
+        "h-full min-h-full border-none bg-zinc-900/80 hover:bg-zinc-800 shadow-2xl transition-all duration-500 group relative overflow-hidden flex flex-col rounded-2xl ring-1",
+        isPending ? "ring-yellow-500" : "ring-white/5",
+        isExpired ? "hover:ring-sky-400/40" : (isPending ? "hover:ring-yellow-500/80" : "hover:ring-red-500/40")
       )}>
         <div className={cn(
           "absolute left-0 top-0 bottom-0 w-1.5 group-hover:w-2 transition-all duration-500",
