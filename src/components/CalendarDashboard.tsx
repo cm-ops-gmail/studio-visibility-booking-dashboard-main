@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -6,7 +5,7 @@ import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -15,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export function CalendarDashboard() {
   const [date, setDate] = useState<Date | null>(null);
@@ -167,7 +167,7 @@ export function CalendarDashboard() {
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950 text-white selection:bg-orange-500/30 selection:text-white font-body overflow-hidden">
       {/* Brand Header */}
-      <header className="shrink-0 bg-zinc-950 border-b border-zinc-900 px-6 py-6 flex items-center justify-start">
+      <header className="shrink-0 bg-zinc-950 border-b border-zinc-900 px-6 py-6 flex items-center justify-between">
         <div className="relative h-14 w-[300px]">
           <Image 
             src="/logo.png" 
@@ -177,6 +177,12 @@ export function CalendarDashboard() {
             priority
           />
         </div>
+        <Link href="/admin">
+          <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
+            <Lock className="w-3 h-3" />
+            Admin Access
+          </Button>
+        </Link>
       </header>
 
       {/* Operations Bar (Date, Sync, Filters) */}
@@ -362,8 +368,8 @@ export function CalendarDashboard() {
                 <TableHeader className="sticky top-0 z-[60] bg-zinc-950">
                   <TableRow className="bg-zinc-950 border-none">
                     <TableHead className="w-[80px] min-w-[80px] sticky top-0 left-0 z-[70] bg-zinc-950 font-black text-white uppercase tracking-[0.2em] text-center border-r border-b border-zinc-900/50 p-4 text-[9px] shadow-[2px_2px_10px_rgba(0,0,0,0.5)]">
-                      <div className="flex flex-col items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-white" />
+                      <div className="flex flex-col items-center gap-1.5 text-white">
+                        <Clock className="w-4 h-4" />
                         TIME
                       </div>
                     </TableHead>
