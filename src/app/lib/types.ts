@@ -18,6 +18,10 @@ export interface ClassBooking {
   suggestedDescription?: string;
   rowSpan?: number; // Calculated intervals to span
   isFirst?: boolean; // Whether this is the starting interval for rendering
+  // Booking Request Fields
+  requestStatus?: 'pending' | 'approved' | 'rejected';
+  requestedAt?: string; // ISO
+  requestedDuration?: string; // e.g. "1h 30m"
 }
 
 export interface TimeInterval {
@@ -31,4 +35,14 @@ export interface DaySchedule {
   studios: string[];
   intervals: TimeInterval[]; // Dynamic time intervals for the day
   grid: Record<string, Record<string, ClassBooking>>; // startISO -> studio -> booking
+}
+
+export interface BookingRequest {
+  id: string;
+  studio: string;
+  date: string;
+  startTime: string; // ISO
+  duration: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requestedAt: string; // ISO
 }

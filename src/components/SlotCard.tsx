@@ -1,13 +1,32 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { ClassBooking } from '@/app/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Clock, Layers, ExternalLink, History } from 'lucide-react';
+import { User, Clock, Layers, ExternalLink, History, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { isBefore, parse, isValid } from 'date-fns';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { submitBookingRequest } from '@/app/actions/booking';
+import { useToast } from '@/hooks/use-toast';
 
 interface SlotCardProps {
   slot: ClassBooking;
@@ -16,6 +35,10 @@ interface SlotCardProps {
 
 export function SlotCard({ slot }: SlotCardProps) {
   const [now, setNow] = useState<Date | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState('1 hr');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setNow(new Date());
@@ -23,44 +46,62 @@ export function SlotCard({ slot }: SlotCardProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Determine if the slot has passed based on local time
   const isExpired = useMemo(() => {
     if (!now) return false;
-    
     try {
-      // Use the raw date and scheduled time strings to construct a local comparison date
-      const datePart = slot.date; // e.g., "2024-03-24"
-      const timePart = slot.scheduledTime; // e.g., "10:00 AM"
-      
-      const referenceDate = parse(datePart, 'yyyy-MM-dd', new Date());
-      const slotDateTime = parse(timePart, 'h:mm a', referenceDate);
-      
-      if (!isValid(slotDateTime)) {
-        // Fallback to ISO string if parsing fails
-        return isBefore(new Date(slot.startTime), now);
-      }
-      
+      const referenceDate = parse(slot.date, 'yyyy-MM-dd', new Date());
+      const slotDateTime = parse(slot.scheduledTime, 'h:mm a', referenceDate);
+      if (!isValid(slotDateTime)) return isBefore(new Date(slot.startTime), now);
       return isBefore(slotDateTime, now);
     } catch (e) {
       return isBefore(new Date(slot.startTime), now);
     }
   }, [now, slot.date, slot.scheduledTime, slot.startTime]);
 
+  const handleRequestBooking = async () => {
+    setIsSubmitting(true);
+    try {
+      await submitBookingRequest({
+        studio: slot.studio,
+        date: slot.date,
+        startTime: slot.startTime,
+        duration: selectedDuration,
+      });
+      toast({
+        title: "Request Submitted",
+        description: "Your booking is waiting for admin approval.",
+      });
+      setIsDialogOpen(false);
+      // Refresh the page to show the overlay state
+      window.location.reload();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: "Could not submit your request. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const timeRangeLabel = slot.startTimeLabel && slot.endTimeLabel 
     ? `${slot.startTimeLabel} - ${slot.endTimeLabel}`
-    : '';
+    : slot.startTimeLabel || '';
 
   if (slot.isBooked) {
+    const isPending = slot.requestStatus === 'pending';
+    
     return (
       <Card className={cn(
         "h-full min-h-full border-none bg-zinc-900/80 hover:bg-zinc-800 shadow-2xl transition-all duration-500 group relative overflow-hidden flex flex-col rounded-2xl ring-1 ring-white/5",
-        isExpired ? "hover:ring-sky-400/40" : "hover:ring-red-500/40"
+        isExpired ? "hover:ring-sky-400/40" : (isPending ? "hover:ring-yellow-500/40" : "hover:ring-red-500/40")
       )}>
         <div className={cn(
           "absolute left-0 top-0 bottom-0 w-1.5 group-hover:w-2 transition-all duration-500",
           isExpired 
             ? "bg-sky-500 shadow-[2px_0_15px_rgba(56,189,248,0.4)]" 
-            : "bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]"
+            : (isPending ? "bg-yellow-500 shadow-[2px_0_15px_rgba(234,179,8,0.4)]" : "bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]")
         )} />
         
         <CardContent className="p-3 flex flex-col gap-3 h-full relative z-10">
@@ -71,10 +112,15 @@ export function SlotCard({ slot }: SlotCardProps) {
                    "text-[8px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-md",
                    isExpired 
                     ? "text-sky-400 border-sky-400/40 bg-sky-400/10" 
-                    : "text-white border-red-500/40 bg-red-500/10"
+                    : (isPending ? "text-yellow-500 border-yellow-500/40 bg-yellow-500/10" : "text-white border-red-500/40 bg-red-500/10")
                  )}>
                    {slot.productType || 'CLASS'}
                  </Badge>
+                 {isPending && (
+                    <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.1em] text-yellow-500 border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 rounded-md">
+                      PENDING APPROVAL
+                    </Badge>
+                 )}
                  {isExpired && (
                     <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.1em] text-sky-400 border-sky-400/40 bg-sky-400/10 px-2 py-0.5 rounded-md">
                       EXPIRED
@@ -87,7 +133,7 @@ export function SlotCard({ slot }: SlotCardProps) {
               
               <h3 className={cn(
                 "font-black text-xs leading-tight transition-colors tracking-tight line-clamp-2 uppercase",
-                isExpired ? "text-zinc-400 group-hover:text-sky-400" : "text-white group-hover:text-red-500"
+                isExpired ? "text-zinc-400 group-hover:text-sky-400" : (isPending ? "text-yellow-500" : "text-white group-hover:text-red-500")
               )}>
                 {slot.subject}
               </h3>
@@ -107,7 +153,7 @@ export function SlotCard({ slot }: SlotCardProps) {
             <div className="flex items-center gap-2 min-w-0">
                 <div className={cn(
                   "w-8 h-8 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg",
-                  isExpired ? "group-hover:bg-sky-500 group-hover:border-sky-500" : "group-hover:bg-red-500 group-hover:border-red-500"
+                  isExpired ? "group-hover:bg-sky-500" : (isPending ? "group-hover:bg-yellow-500" : "group-hover:bg-red-500")
                 )}>
                   <User className="w-4 h-4 text-white" />
                 </div>
@@ -120,7 +166,7 @@ export function SlotCard({ slot }: SlotCardProps) {
             </div>
             {timeRangeLabel && (
                 <div className="bg-black/60 border border-zinc-800 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-inner">
-                  <Clock className={cn("w-3 h-3", isExpired ? "text-sky-400" : "text-red-500")} />
+                  <Clock className={cn("w-3 h-3", isExpired ? "text-sky-400" : (isPending ? "text-yellow-500" : "text-red-500"))} />
                   <span className="text-[8px] font-black text-white whitespace-nowrap tracking-tighter">
                     {timeRangeLabel}
                   </span>
@@ -161,22 +207,52 @@ export function SlotCard({ slot }: SlotCardProps) {
         </div>
         
         {!isExpired ? (
-          <div className="flex flex-col gap-2 items-center">
-            <a 
-              href="https://forms.gle/bf4WzXLC9KCoD2WG8" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full"
-            >
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
               <Button 
                 variant="outline" 
                 className="w-full rounded-xl h-9 text-[9px] font-black uppercase tracking-[0.2em] bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all border-emerald-500/30 hover:border-emerald-500 px-4 flex items-center justify-center gap-2 shadow-lg"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 Request a Booking
               </Button>
-            </a>
-          </div>
+            </DialogTrigger>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-white">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-black uppercase tracking-tight">Request Studio Time</DialogTitle>
+                <DialogDescription className="text-zinc-500 text-xs font-bold uppercase tracking-widest">
+                  {slot.studio} • {slot.scheduledTime}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-6 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Select Duration</label>
+                  <Select value={selectedDuration} onValueChange={setSelectedDuration}>
+                    <SelectTrigger className="bg-zinc-900 border-zinc-800 rounded-xl h-12 font-bold">
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                      <SelectItem value="30 mins">30 MINS</SelectItem>
+                      <SelectItem value="1 hr">1 HR</SelectItem>
+                      <SelectItem value="1 hr 30 mins">1 HR 30 MINS</SelectItem>
+                      <SelectItem value="2 hrs">2 HRS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button 
+                  onClick={handleRequestBooking} 
+                  disabled={isSubmitting}
+                  className="w-full h-12 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-widest"
+                >
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "CONFIRM REQUEST"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         ) : (
           <div className="flex flex-col items-center">
             <div className="bg-sky-500/10 border border-sky-500/30 p-2 rounded-xl flex items-center gap-2">

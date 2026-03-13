@@ -1,9 +1,11 @@
+
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
 import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes, differenceInMinutes } from 'date-fns';
 import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
+import { getActiveRequestsOverlay } from './booking';
 
 const CLASS_DURATION_HOURS = 2;
 const DAY_START_HOUR = 10;
@@ -68,6 +70,9 @@ function parseTime(timeStr: string, referenceDay: Date): Date | null {
 export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedule> {
   const allRows = await getSheetData();
   const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
+  
+  // Fetch memory overlay for pending/approved requests
+  const requestsOverlay = await getActiveRequestsOverlay();
 
   let studioKey = 'Studio', timeKey = 'Scheduled Time', dateKey = 'Date', 
       teacherKey = 'Teacher 1', courseKey = 'Course', subjectKey = 'Subject', topicKey = 'Topic',
@@ -91,7 +96,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     entryTimeKey = findKey(['Entry Time [T-45min/T-30min]', 'Entry Time']);
   }
 
-  const bookings: ClassBooking[] = allRows
+  const sheetBookings: ClassBooking[] = allRows
     .map((row, index) => {
       const dateVal = String(row[dateKey] || '').trim();
       const timeVal = String(row[timeKey] || '').trim();
@@ -125,15 +130,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
           endTime = addHours(startTime, CLASS_DURATION_HOURS);
       }
 
-      const durationMinutes = Math.abs(differenceInMinutes(endTime, startTime));
-      const hours = Math.floor(durationMinutes / 60);
-      const mins = durationMinutes % 60;
-      
-      let durationLabel = '';
-      if (hours > 0) durationLabel += `${hours}H`;
-      if (mins > 0) durationLabel += `${hours > 0 ? ' ' : ''}${mins}M`;
-      if (!durationLabel) durationLabel = '0M';
-
       return {
         id: `row-${index}`, 
         studio: studioMatch,
@@ -148,7 +144,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         endTime: endTime.toISOString(),
         startTimeLabel: format(startTime, 'h:mm a'),
         endTimeLabel: format(endTime, 'h:mm a'),
-        durationLabel: durationLabel,
         isBooked: true,
       };
     })
@@ -177,31 +172,58 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     const midPoint = addMinutes(intervalStart, 1);
 
     ALLOWED_STUDIOS.forEach((studio) => {
-      const activeBooking = bookings.find(b => {
+      // 1. Check Sheet Data
+      const activeSheetBooking = sheetBookings.find(b => {
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
-        const actualStart = bStart < bEnd ? bStart : bEnd;
-        const actualEnd = bStart < bEnd ? bEnd : bStart;
-        return midPoint >= actualStart && midPoint < actualEnd;
+        return midPoint >= bStart && midPoint < bEnd;
       });
+
+      // 2. Check Memory Requests Overlay
+      const activeRequest = requestsOverlay.find(req => {
+        if (req.studio !== studio || req.date !== targetDateStr) return false;
+        const reqStart = new Date(req.startTime);
+        // Calculate end based on duration label
+        let durationHrs = 0.5;
+        if (req.duration === '1 hr') durationHrs = 1;
+        if (req.duration === '1 hr 30 mins') durationHrs = 1.5;
+        if (req.duration === '2 hrs') durationHrs = 2;
+        const reqEnd = addHours(reqStart, durationHrs);
+        return midPoint >= reqStart && midPoint < reqEnd;
+      });
+
+      const activeBooking = activeSheetBooking || (activeRequest ? {
+        id: `req-${activeRequest.id}`,
+        studio: activeRequest.studio,
+        date: activeRequest.date,
+        scheduledTime: format(new Date(activeRequest.startTime), 'h:mm a'),
+        course: 'USER REQUEST',
+        subject: activeRequest.status === 'pending' ? 'PENDING APPROVAL' : 'APPROVED BOOKING',
+        topic: `Duration: ${activeRequest.duration}`,
+        teacher: 'Pending',
+        productType: 'STUDIO BOOKING',
+        startTime: activeRequest.startTime,
+        endTime: addHours(new Date(activeRequest.startTime), activeRequest.duration.includes('2') ? 2 : (activeRequest.duration.includes('1.5') ? 1.5 : 1)).toISOString(),
+        startTimeLabel: format(new Date(activeRequest.startTime), 'h:mm a'),
+        isBooked: true,
+        requestStatus: activeRequest.status,
+      } as ClassBooking : null);
 
       if (activeBooking) {
         const bStart = new Date(activeBooking.startTime);
         const bEnd = new Date(activeBooking.endTime);
-        const actualStart = bStart < bEnd ? bStart : bEnd;
-        const actualEnd = bStart < bEnd ? bEnd : bStart;
         
         const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
         const prevMidPoint = addMinutes(prevIntervalStart, 1);
-        const isFirst = !(prevMidPoint >= actualStart && prevMidPoint < actualEnd && prevIntervalStart >= dayStart);
+        const isFirst = !(prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart);
 
         let rowSpan = 1;
         if (isFirst) {
             let scan = addMinutes(intervalStart, INTERVAL_MINUTES);
             while (scan <= dayEnd) {
                 const scanMid = addMinutes(scan, 1);
-                if (scanMid >= actualStart && scanMid < actualEnd) {
+                if (scanMid >= bStart && scanMid < bEnd) {
                     rowSpan++;
                 } else {
                     break;
@@ -229,7 +251,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
           startTime: interval.start,
           endTime: interval.end,
           startTimeLabel: format(intervalStart, 'h:mm a'),
-          endTimeLabel: format(addMinutes(intervalStart, 30), 'h:mm a'),
           isBooked: false,
         };
       }
