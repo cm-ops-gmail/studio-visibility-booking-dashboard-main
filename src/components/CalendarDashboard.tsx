@@ -444,7 +444,7 @@ export function CalendarDashboard() {
           ) : schedule && filteredIntervals.length > 0 ? (
             <div 
               ref={dataframeRef} 
-              className="bg-zinc-900/30 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-auto scrollbar-hide relative flex-1"
+              className="bg-zinc-900/30 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-auto relative flex-1"
             >
               <Table className="border-separate border-spacing-0 w-full min-w-max">
                 <TableHeader className="sticky top-0 z-[60] bg-zinc-900">
