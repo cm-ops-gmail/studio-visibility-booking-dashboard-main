@@ -138,7 +138,8 @@ export function CalendarDashboard() {
                 duration: slot.durationLabel,
                 intervalStart: interval.start,
                 studioName: studio,
-                requestStatus: slot.requestStatus
+                requestStatus: slot.requestStatus,
+                isPrep: slot.isPrepSlot
               });
             }
           }
@@ -366,11 +367,11 @@ export function CalendarDashboard() {
                                   <div className="flex items-center justify-between">
                                       <span className={cn(
                                         "text-[10px] font-black uppercase tracking-tight truncate mr-2",
-                                        b.requestStatus === 'pending' ? "text-yellow-500" : "text-white"
+                                        b.requestStatus === 'pending' ? "text-yellow-500" : (b.isPrep ? "text-purple-400" : "text-white")
                                       )}>{b.subject}</span>
                                       <span className={cn(
                                         "text-[9px] font-black whitespace-nowrap",
-                                        b.requestStatus === 'pending' ? "text-yellow-500" : "text-red-500"
+                                        b.requestStatus === 'pending' ? "text-yellow-500" : (b.isPrep ? "text-purple-400" : "text-red-500")
                                       )}>{b.time}</span>
                                   </div>
                                   <span className="text-[8px] font-black text-zinc-500 uppercase tracking-[0.2em]">{b.duration}</span>

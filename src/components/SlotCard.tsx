@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -101,13 +100,13 @@ export function SlotCard({ slot }: SlotCardProps) {
       <Card className={cn(
         "h-full min-h-full border-none bg-zinc-900/80 hover:bg-zinc-800 shadow-2xl transition-all duration-500 group relative overflow-hidden flex flex-col rounded-2xl ring-1",
         isPending ? "ring-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : 
-        isPrep ? "ring-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.2)]" : "ring-white/5",
+        isPrep ? "ring-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.2)]" : "ring-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.1)]",
         isPending 
           ? "hover:ring-yellow-400" 
-          : isPrep ? "hover:ring-purple-500/40" : "hover:ring-red-500/40"
+          : isPrep ? "hover:ring-purple-500/80" : "hover:ring-red-500"
       )}>
         <div className={cn(
-          "absolute left-0 top-0 bottom-0 w-1.5 group-hover:w-2 transition-all duration-500",
+          "absolute left-0 top-0 bottom-0 w-1.5 group-hover:w-2 transition-all duration-500 z-20",
           isPending 
             ? "bg-yellow-500 shadow-[2px_0_15px_rgba(234,179,8,0.4)]" 
             : isPrep ? "bg-purple-600 shadow-[2px_0_15px_rgba(147,51,234,0.4)]" : "bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]"
