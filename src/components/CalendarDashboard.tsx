@@ -5,7 +5,7 @@ import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays, isBefore, parse, isValid } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info, Monitor, Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -212,12 +212,20 @@ export function CalendarDashboard() {
             priority
           />
         </div>
-        <Link href="/admin">
-          <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
-            <Lock className="w-3 h-3" />
-            Admin Access
-          </Button>
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="https://ops-live-class-monitoring-dashboard.vercel.app/" target="_blank">
+            <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
+              <Monitor className="w-3.5 h-3.5" />
+              Live Class Monitor
+            </Button>
+          </Link>
+          <Link href="/admin">
+            <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
+              <Lock className="w-3.5 h-3.5" />
+              Admin Access
+            </Button>
+          </Link>
+        </div>
       </header>
 
       {/* Hero Monitoring Section */}
