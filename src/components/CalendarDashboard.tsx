@@ -494,7 +494,7 @@ export function CalendarDashboard() {
                         }
 
                         return (
-                          <TableCell id={cellId} key={`${interval.start}-${studio}`} className="p-1.5 align-top h-full border-r border-b border-zinc-900/30">
+                          <TableCell id={cellId} key={`${interval.start}-${studio}`} className="p-1.5 align-top h-full border-r border-b border-zinc-900/30" style={{ height: '1px' }}>
                             <SlotCard slot={slot} existingBookings={[]} />
                           </TableCell>
                         );
