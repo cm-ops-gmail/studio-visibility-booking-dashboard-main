@@ -263,31 +263,31 @@ export function CalendarDashboard() {
             </Button>
             
             <Popover>
-                <PopoverTrigger asChild>
-                    <Button
-                        variant={"outline"}
-                        className={cn(
-                            "w-[240px] pl-3 text-left font-normal bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:text-white",
-                            !date && "text-muted-foreground"
-                        )}
-                    >
-                        {date ? (
-                            format(date, "PPP")
-                        ) : (
-                            <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl" align="start">
-                    <Calendar
-                        mode="single"
-                        selected={date || undefined}
-                        onSelect={(d) => d && setDate(d)}
-                        initialFocus
-                        className="bg-zinc-900 text-white"
-                    />
-                </PopoverContent>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] pl-3 text-left font-normal bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:text-white",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  {date ? (
+                    format(date, "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl z-[1000]" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date || undefined}
+                  onSelect={(d) => d && setDate(d)}
+                  initialFocus
+                  className="bg-zinc-900 text-white"
+                />
+              </PopoverContent>
             </Popover>
 
             <Button variant="ghost" size="icon" onClick={nextDay} className="h-10 w-10 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
@@ -311,7 +311,7 @@ export function CalendarDashboard() {
                   <SelectTrigger className="w-[220px] h-11 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black text-white uppercase tracking-widest">
                       <SelectValue placeholder="All Studios" />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectContent position="popper" className="bg-zinc-900 border-zinc-800 text-white z-[1000]">
                       <SelectItem value="all">ALL LOCATIONS</SelectItem>
                       {schedule?.studios.map(studio => (
                           <SelectItem key={studio} value={studio}>{studio.toUpperCase()}</SelectItem>
@@ -329,7 +329,7 @@ export function CalendarDashboard() {
                   <SelectTrigger className="w-[220px] h-11 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black text-white uppercase tracking-widest">
                       <SelectValue placeholder="All Slots" />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectContent position="popper" className="bg-zinc-900 border-zinc-800 text-white z-[1000]">
                       <SelectItem value="all">ALL SLOTS</SelectItem>
                       <SelectItem value="available">AVAILABLE ONLY</SelectItem>
                       <SelectItem value="booked">BOOKED CLASSES</SelectItem>
