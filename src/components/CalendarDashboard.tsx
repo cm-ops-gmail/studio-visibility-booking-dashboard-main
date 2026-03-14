@@ -347,7 +347,7 @@ export function CalendarDashboard() {
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 scrollbar-hide">
+                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3">
                       {filterStudio === 'all' ? (
                           Object.entries(summaryData.bookedByStudio || {})
                               .filter(([_, data]: [any, any]) => data.count > 0)
@@ -398,7 +398,7 @@ export function CalendarDashboard() {
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 scrollbar-hide">
+                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3">
                       {filterStudio === 'all' ? (
                           Object.entries(summaryData.availableByStudio || {})
                               .filter(([_, data]: [any, any]) => data.count > 0)
