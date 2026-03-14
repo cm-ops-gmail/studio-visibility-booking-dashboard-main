@@ -296,7 +296,7 @@ export function CalendarDashboard() {
                   <SelectTrigger className="w-[220px] h-11 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black text-white uppercase tracking-widest">
                       <SelectValue placeholder="All Studios" />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white max-h-[300px] overflow-y-auto">
+                  <SelectContent position="popper" className="bg-zinc-900 border-zinc-800 text-white max-h-[300px] overflow-y-auto">
                       <SelectItem value="all">ALL LOCATIONS</SelectItem>
                       {schedule?.studios.map(studio => (
                           <SelectItem key={studio} value={studio}>{studio.toUpperCase()}</SelectItem>
@@ -456,7 +456,7 @@ export function CalendarDashboard() {
                       </div>
                     </TableHead>
                     {filteredStudios.map((studio) => (
-                      <TableHead key={studio} className="min-w-[220px] font-black text-orange-500 uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-5 px-6 text-[10px] bg-zinc-900 sticky top-0 z-[60] shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+                      <TableHead key={studio} className="min-w-[200px] font-black text-orange-500 uppercase tracking-[0.15em] text-center border-r border-b border-zinc-900/50 py-5 px-6 text-[10px] bg-zinc-900 sticky top-0 z-[60] shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
                         {studio}
                       </TableHead>
                     ))}
