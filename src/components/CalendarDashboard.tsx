@@ -296,7 +296,7 @@ export function CalendarDashboard() {
                   <SelectTrigger className="w-[220px] h-11 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black text-white uppercase tracking-widest">
                       <SelectValue placeholder="All Studios" />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="bg-zinc-900 border-zinc-800 text-white max-h-[300px] overflow-y-auto">
+                  <SelectContent position="popper" className="bg-zinc-900 border-zinc-800 text-white">
                       <SelectItem value="all">ALL LOCATIONS</SelectItem>
                       {schedule?.studios.map(studio => (
                           <SelectItem key={studio} value={studio}>{studio.toUpperCase()}</SelectItem>
