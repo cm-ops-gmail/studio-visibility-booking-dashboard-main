@@ -98,7 +98,7 @@ export function CalendarDashboard() {
         const matchesAvailability = 
           (filterAvailability === 'all') || 
           (filterAvailability === 'available' && !slot.isBooked) ||
-          (filterAvailability === 'booked' && slot.isBooked && slot.requestStatus !== 'pending') ||
+          (filterAvailability === 'booked' && slot.isBooked && slot.requestStatus !== 'pending' && !slot.isPrepSlot) ||
           (filterAvailability === 'pending' && slot.isBooked && slot.requestStatus === 'pending');
         
         return matchesAvailability;
@@ -135,7 +135,7 @@ export function CalendarDashboard() {
                 id: slot.id,
                 subject: slot.subject,
                 time: `${slot.startTimeLabel} - ${slot.endTimeLabel}`,
-                duration: slot.durationLabel,
+                duration: slot.durationLabel || '',
                 intervalStart: interval.start,
                 studioName: studio,
                 requestStatus: slot.requestStatus,
@@ -256,7 +256,6 @@ export function CalendarDashboard() {
 
       {/* Operations Bar (Date, Sync, Filters) */}
       <div className="shrink-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900/50 px-6 py-8 flex flex-col items-center gap-8 z-[100]">
-        {/* Row 1: Date and Sync */}
         <div className="flex items-center gap-6 flex-wrap justify-center w-full">
           <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
             <Button variant="ghost" size="icon" onClick={prevDay} className="h-10 w-10 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
@@ -285,7 +284,6 @@ export function CalendarDashboard() {
           </Button>
         </div>
 
-        {/* Row 2: Filters */}
         <div className="flex items-center gap-10 flex-wrap justify-center w-full">
           <div className="flex items-center gap-4">
               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2.5">
@@ -314,7 +312,7 @@ export function CalendarDashboard() {
                   <SelectTrigger className="w-[220px] h-11 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black text-white uppercase tracking-widest">
                       <SelectValue placeholder="All Slots" />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                  <SelectContent position="popper" className="bg-zinc-900 border-zinc-800 text-white">
                       <SelectItem value="all">ALL SLOTS</SelectItem>
                       <SelectItem value="available">AVAILABLE ONLY</SelectItem>
                       <SelectItem value="booked">BOOKED CLASSES</SelectItem>
@@ -347,7 +345,7 @@ export function CalendarDashboard() {
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3">
+                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-800">
                       {filterStudio === 'all' ? (
                           Object.entries(summaryData.bookedByStudio || {})
                               .filter(([_, data]: [any, any]) => data.count > 0)
@@ -398,7 +396,7 @@ export function CalendarDashboard() {
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3">
+                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-800">
                       {filterStudio === 'all' ? (
                           Object.entries(summaryData.availableByStudio || {})
                               .filter(([_, data]: [any, any]) => data.count > 0)
@@ -464,22 +462,22 @@ export function CalendarDashboard() {
                 </TableHeader>
                 <TableBody>
                   {filteredIntervals.map((interval) => (
-                    <TableRow key={interval.start} className="border-none h-16">
-                      <TableCell className="font-black text-orange-500 sticky left-0 z-20 bg-zinc-900/95 backdrop-blur-sm border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-[5px_0_15px_rgba(0,0,0,0.3)]">
+                    <TableRow key={interval.start} className="border-none">
+                      <TableCell className="font-black text-orange-500 sticky left-0 z-20 bg-zinc-900/95 backdrop-blur-sm border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-[5px_0_15px_rgba(0,0,0,0.3)]" style={{ height: '1px' }}>
                         {interval.label}
                       </TableCell>
                       {filteredStudios.map((studio) => {
                         const slot = schedule.grid[interval.start]?.[studio];
-                        if (!slot) return <TableCell key={`${interval.start}-${studio}`} className="p-0 border-b border-zinc-900/10" />;
+                        if (!slot) return <TableCell key={`${interval.start}-${studio}`} className="p-0 border-b border-zinc-900/10" style={{ height: '1px' }} />;
 
                         const isVisible = 
                           (filterAvailability === 'all') || 
                           (filterAvailability === 'available' && !slot.isBooked) ||
-                          (filterAvailability === 'booked' && slot.isBooked && slot.requestStatus !== 'pending') ||
+                          (filterAvailability === 'booked' && slot.isBooked && slot.requestStatus !== 'pending' && !slot.isPrepSlot) ||
                           (filterAvailability === 'pending' && slot.isBooked && slot.requestStatus === 'pending');
 
                         if (!isVisible) {
-                           return <TableCell key={`${interval.start}-${studio}`} className="p-0 border-r border-b border-zinc-900/5 bg-transparent" />;
+                           return <TableCell key={`${interval.start}-${studio}`} className="p-0 border-r border-b border-zinc-900/5 bg-transparent" style={{ height: '1px' }} />;
                         }
 
                         const cellId = `slot-${interval.start}-${studio.replace(/\s+/g, '-')}`;
