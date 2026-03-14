@@ -263,14 +263,31 @@ export function CalendarDashboard() {
             </Button>
             
             <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" className="px-10 h-10 font-black text-sm text-white hover:bg-zinc-800 rounded-lg tracking-[0.2em] uppercase">
-                  {formattedDateLabel}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl" align="center">
-                <Calendar mode="single" selected={date || undefined} onSelect={(d) => d && setDate(d)} initialFocus className="bg-zinc-900 text-white" />
-              </PopoverContent>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant={"outline"}
+                        className={cn(
+                            "w-[240px] pl-3 text-left font-normal bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:text-white",
+                            !date && "text-muted-foreground"
+                        )}
+                    >
+                        {date ? (
+                            format(date, "PPP")
+                        ) : (
+                            <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 shadow-2xl" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={date || undefined}
+                        onSelect={(d) => d && setDate(d)}
+                        initialFocus
+                        className="bg-zinc-900 text-white"
+                    />
+                </PopoverContent>
             </Popover>
 
             <Button variant="ghost" size="icon" onClick={nextDay} className="h-10 w-10 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
@@ -463,7 +480,7 @@ export function CalendarDashboard() {
                 <TableBody>
                   {filteredIntervals.map((interval) => (
                     <TableRow key={interval.start} className="border-none">
-                      <TableCell className="font-black text-orange-500 sticky left-0 z-20 bg-zinc-900/95 backdrop-blur-sm border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 h-full shadow-[5px_0_15px_rgba(0,0,0,0.3)]" style={{ height: '1px' }}>
+                      <TableCell className="font-black text-orange-500 sticky left-0 z-20 bg-zinc-900/95 backdrop-blur-sm border-r border-b border-zinc-900/50 text-center align-middle py-4 text-[10px] px-2 shadow-[5px_0_15px_rgba(0,0,0,0.3)]" style={{ height: '1px' }}>
                         {interval.label}
                       </TableCell>
                       {filteredStudios.map((studio) => {
@@ -485,14 +502,14 @@ export function CalendarDashboard() {
                         if (slot.isBooked) {
                            if (!slot.isFirst) return null;
                            return (
-                             <TableCell id={cellId} key={`${interval.start}-${studio}`} rowSpan={slot.rowSpan || 1} className="p-1.5 align-top h-full border-r border-b border-zinc-900/30" style={{ height: '1px' }}>
+                             <TableCell id={cellId} key={`${interval.start}-${studio}`} rowSpan={slot.rowSpan || 1} className="p-1.5 align-top border-r border-b border-zinc-900/30" style={{ height: '1px' }}>
                                 <SlotCard slot={slot} existingBookings={[]} />
                              </TableCell>
                            );
                         }
 
                         return (
-                          <TableCell id={cellId} key={`${interval.start}-${studio}`} className="p-1.5 align-top h-full border-r border-b border-zinc-900/30" style={{ height: '1px' }}>
+                          <TableCell id={cellId} key={`${interval.start}-${studio}`} className="p-1.5 align-top border-r border-b border-zinc-900/30" style={{ height: '1px' }}>
                             <SlotCard slot={slot} existingBookings={[]} />
                           </TableCell>
                         );
