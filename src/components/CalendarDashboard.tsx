@@ -267,7 +267,7 @@ export function CalendarDashboard() {
                 <Button
                   variant={"outline"}
                   className={cn(
-                    "w-[240px] pl-3 text-left font-normal bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:text-white",
+                    "w-[240px] h-12 pl-3 text-left font-normal bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:text-white",
                     !date && "text-muted-foreground"
                   )}
                 >
@@ -285,7 +285,7 @@ export function CalendarDashboard() {
                   selected={date || undefined}
                   onSelect={(d) => d && setDate(d)}
                   initialFocus
-                  className="bg-zinc-900 text-white"
+                  className="bg-zinc-900 text-white p-4"
                 />
               </PopoverContent>
             </Popover>
@@ -452,14 +452,14 @@ export function CalendarDashboard() {
       {/* Calendar Section (Dataframe) */}
       <div className="px-6 pb-6 flex-1 flex flex-col min-h-0">
           {loading ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-6 bg-zinc-900/20 border border-zinc-900 rounded-[2rem]">
+            <div className="flex-1 flex flex-col items-center justify-center gap-6 bg-zinc-900/20 border border-zinc-900 rounded-[3rem]">
               <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
               <p className="text-zinc-500 font-black text-[9px] tracking-[0.4em] uppercase">Refreshing Dataset</p>
             </div>
           ) : schedule && filteredIntervals.length > 0 ? (
             <div 
               ref={dataframeRef} 
-              className="bg-zinc-900/30 rounded-[2rem] border border-zinc-900 shadow-2xl overflow-auto relative flex-1"
+              className="bg-zinc-900/30 rounded-[3rem] border border-zinc-900 shadow-2xl overflow-auto relative flex-1"
             >
               <Table className="border-separate border-spacing-0 w-full min-w-max">
                 <TableHeader className="sticky top-0 z-[60] bg-zinc-900">
