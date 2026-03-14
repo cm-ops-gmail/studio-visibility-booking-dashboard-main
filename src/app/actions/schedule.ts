@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSheetData } from '@/app/lib/google-sheets';
@@ -163,6 +164,20 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     current = next;
   }
 
+  // Pre-calculate Prep Slots: For each non-Studio Booking class, mark the 30min interval before it
+  const prepSlots: Record<string, Set<string>> = {};
+  sheetBookings.forEach(b => {
+    const isStudioBooking = (b.productType || '').toLowerCase().includes('studio booking');
+    if (!isStudioBooking) {
+      const bStartISO = b.startTime;
+      const prepInterval = intervals.find(inv => inv.end === bStartISO);
+      if (prepInterval) {
+        if (!prepSlots[prepInterval.start]) prepSlots[prepInterval.start] = new Set();
+        prepSlots[prepInterval.start].add(b.studio);
+      }
+    }
+  });
+
   const grid: Record<string, Record<string, ClassBooking>> = {};
 
   intervals.forEach((interval) => {
@@ -184,7 +199,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         if (req.studio !== studio || req.date !== targetDateStr) return false;
         const reqStart = new Date(req.startTime);
         
-        // Calculate end based on exact duration string from SlotCard
         let durationHrs = 1;
         if (req.duration === '30 mins') durationHrs = 0.5;
         if (req.duration === '1 hr 30 mins') durationHrs = 1.5;
@@ -215,9 +229,30 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         requestStatus: activeRequest.status,
       } as ClassBooking : null);
 
-      if (activeBooking) {
-        const bStart = new Date(activeBooking.startTime);
-        const bEnd = new Date(activeBooking.endTime);
+      // 3. Preparation Slot Logic: If not booked, check if it's a prep slot
+      const isPrepSlot = !activeBooking && prepSlots[interval.start]?.has(studio);
+
+      const finalBooking = activeBooking || (isPrepSlot ? {
+        id: `prep-${studio}-${interval.start}`,
+        studio,
+        date: targetDateStr,
+        scheduledTime: format(intervalStart, 'h:mm a'),
+        course: 'SYSTEM',
+        subject: 'NOT AVAILABLE',
+        topic: 'Need to prepare studio for next class',
+        teacher: 'Ops Team',
+        productType: 'PREPARATION',
+        startTime: interval.start,
+        endTime: interval.end,
+        startTimeLabel: format(intervalStart, 'h:mm a'),
+        endTimeLabel: format(new Date(interval.end), 'h:mm a'),
+        isBooked: true,
+        isPrepSlot: true,
+      } as ClassBooking : null);
+
+      if (finalBooking) {
+        const bStart = new Date(finalBooking.startTime);
+        const bEnd = new Date(finalBooking.endTime);
         
         const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
         const prevMidPoint = addMinutes(prevIntervalStart, 1);
@@ -238,7 +273,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         }
 
         grid[interval.start][studio] = {
-          ...activeBooking,
+          ...finalBooking,
           isFirst,
           rowSpan
         };

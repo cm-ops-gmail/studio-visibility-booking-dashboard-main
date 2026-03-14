@@ -18,6 +18,7 @@ export interface ClassBooking {
   suggestedDescription?: string;
   rowSpan?: number; // Calculated intervals to span
   isFirst?: boolean; // Whether this is the starting interval for rendering
+  isPrepSlot?: boolean; // Whether this is a preparation slot
   // Booking Request Fields
   requestStatus?: 'pending' | 'approved' | 'rejected';
   requestedAt?: string; // ISO

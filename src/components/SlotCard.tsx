@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -94,20 +95,22 @@ export function SlotCard({ slot }: SlotCardProps) {
 
   if (slot.isBooked) {
     const isPending = slot.requestStatus === 'pending';
+    const isPrep = slot.isPrepSlot;
     
     return (
       <Card className={cn(
         "h-full min-h-full border-none bg-zinc-900/80 hover:bg-zinc-800 shadow-2xl transition-all duration-500 group relative overflow-hidden flex flex-col rounded-2xl ring-1",
-        isPending ? "ring-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : "ring-white/5",
+        isPending ? "ring-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : 
+        isPrep ? "ring-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.2)]" : "ring-white/5",
         isPending 
           ? "hover:ring-yellow-400" 
-          : "hover:ring-red-500/40" // Always red for booked class hover
+          : isPrep ? "hover:ring-purple-500/40" : "hover:ring-red-500/40"
       )}>
         <div className={cn(
           "absolute left-0 top-0 bottom-0 w-1.5 group-hover:w-2 transition-all duration-500",
           isPending 
             ? "bg-yellow-500 shadow-[2px_0_15px_rgba(234,179,8,0.4)]" 
-            : "bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]" // Always red for booked class indicator
+            : isPrep ? "bg-purple-600 shadow-[2px_0_15px_rgba(147,51,234,0.4)]" : "bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]"
         )} />
         
         <CardContent className="p-3 flex flex-col gap-3 h-full relative z-10 text-center items-center justify-center">
@@ -118,7 +121,7 @@ export function SlotCard({ slot }: SlotCardProps) {
                    "text-[8px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-md",
                    isPending 
                     ? "text-yellow-500 border-yellow-500/40 bg-yellow-500/10" 
-                    : "text-white border-red-500/40 bg-red-500/10" // Always red theme for booked class
+                    : isPrep ? "text-purple-400 border-purple-500/40 bg-purple-500/10" : "text-white border-red-500/40 bg-red-500/10"
                  )}>
                    {slot.productType || 'CLASS'}
                  </Badge>
@@ -127,7 +130,7 @@ export function SlotCard({ slot }: SlotCardProps) {
                       PENDING APPROVAL
                     </Badge>
                  )}
-                 {(isExpired && !isPending) && (
+                 {(isExpired && !isPending && !isPrep) && (
                     <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.1em] text-red-500 border-red-500/40 bg-red-500/10 px-2 py-0.5 rounded-md">
                       EXPIRED
                     </Badge>
@@ -138,7 +141,7 @@ export function SlotCard({ slot }: SlotCardProps) {
                 "font-black text-xs leading-tight transition-colors tracking-tight line-clamp-2 uppercase",
                 isPending 
                   ? "text-yellow-500" 
-                  : "text-white group-hover:text-red-500" // Always red for booked class text
+                  : isPrep ? "text-purple-400" : "text-white group-hover:text-red-500"
               )}>
                 {slot.subject}
               </h3>
@@ -146,7 +149,7 @@ export function SlotCard({ slot }: SlotCardProps) {
             
             {slot.topic && (
               <div className="flex items-start gap-2 p-2 rounded-xl bg-black/40 border border-white/5 backdrop-blur-sm max-w-full">
-                <Layers className={cn("w-3 h-3 shrink-0 mt-0.5", isPending ? "text-yellow-500/60" : "text-red-500/60")} />
+                <Layers className={cn("w-3 h-3 shrink-0 mt-0.5", isPending ? "text-yellow-500/60" : isPrep ? "text-purple-500/60" : "text-red-500/60")} />
                 <p className="text-[9px] text-white font-bold leading-relaxed line-clamp-2 italic opacity-80 text-left">
                   {slot.topic}
                 </p>
@@ -158,20 +161,20 @@ export function SlotCard({ slot }: SlotCardProps) {
             <div className="flex items-center gap-2 min-w-0">
                 <div className={cn(
                   "w-8 h-8 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg",
-                  isPending ? "group-hover:bg-yellow-500" : "group-hover:bg-red-500" // Always red for booked class
+                  isPending ? "group-hover:bg-yellow-500" : isPrep ? "group-hover:bg-purple-600" : "group-hover:bg-red-500"
                 )}>
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex flex-col min-w-0 items-start">
-                    <span className="text-[7px] font-black text-white/30 uppercase tracking-[0.2em]">INSTRUCTOR</span>
+                    <span className="text-[7px] font-black text-white/30 uppercase tracking-[0.2em]">OPERATIONS</span>
                     <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">
-                      {slot.teacher || 'TBA'}
+                      {isPrep ? 'OPS TEAM' : (slot.teacher || 'TBA')}
                     </span>
                 </div>
             </div>
             {timeRangeLabel && (
                 <div className="bg-black/60 border border-zinc-800 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-inner">
-                  <Clock className={cn("w-3 h-3", isPending ? "text-yellow-500" : "text-red-500")} /> {/* Always red for booked class */}
+                  <Clock className={cn("w-3 h-3", isPending ? "text-yellow-500" : isPrep ? "text-purple-500" : "text-red-500")} />
                   <span className="text-[8px] font-black text-white whitespace-nowrap tracking-tighter">
                     {timeRangeLabel}
                   </span>
