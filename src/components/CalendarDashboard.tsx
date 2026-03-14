@@ -468,7 +468,7 @@ export function CalendarDashboard() {
                       </TableCell>
                       {filteredStudios.map((studio) => {
                         const slot = schedule.grid[interval.start]?.[studio];
-                        if (!slot) return <TableCell key={`${interval.start}-${studio}`} className="p-0 border-b border-zinc-900/10" style={{ height: '1px' }} />;
+                        if (!slot) return <TableCell key={`${interval.start}-${studio}`} className="p-0 border-r border-b border-zinc-900/10" style={{ height: '1px' }} />;
 
                         const isVisible = 
                           (filterAvailability === 'all') || 
