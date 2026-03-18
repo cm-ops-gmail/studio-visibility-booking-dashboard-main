@@ -69,3 +69,14 @@ export interface RangeSummary {
   booked: ClassBooking[];
   availableCount: number;
 }
+
+export interface UtilizationStat {
+  studio: string;
+  percentage: number;
+  usedHours: number;
+  totalAvailableHours: number;
+  details: {
+    classes: any[];
+    shoots: any[];
+  };
+}
