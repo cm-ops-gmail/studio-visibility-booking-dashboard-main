@@ -108,6 +108,11 @@ export function CalendarDashboard() {
     setEndDate(null);
   };
 
+  const clearRange = () => {
+    setStartDate(null);
+    setEndDate(null);
+  };
+
   const isRangeMode = !!(startDate && endDate);
   const isFiltered = filterStudio !== 'all' || filterAvailability !== 'all' || isRangeMode;
 
@@ -432,7 +437,7 @@ export function CalendarDashboard() {
                     {startDate ? format(startDate, "MMM d, yyyy") : "Select Start"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 z-[1000]" align="start">
+                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 z-[1000] shadow-2xl backdrop-blur-md" align="start">
                   <Calendar mode="single" selected={startDate || undefined} onSelect={setStartDate} className="bg-zinc-900 text-white" />
                 </PopoverContent>
               </Popover>
@@ -447,15 +452,20 @@ export function CalendarDashboard() {
                     {endDate ? format(endDate, "MMM d, yyyy") : "Select End"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 z-[1000]" align="start">
+                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 z-[1000] shadow-2xl backdrop-blur-md" align="start">
                   <Calendar mode="single" selected={endDate || undefined} onSelect={setEndDate} className="bg-zinc-900 text-white" />
                 </PopoverContent>
               </Popover>
           </div>
           {isRangeMode && startDate && endDate && (
-            <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20 px-4 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-widest animate-pulse">
-              ANALYZING RANGE: {format(startDate, 'MMM d')} - {format(endDate, 'MMM d')}
-            </Badge>
+            <div className="flex items-center gap-4">
+              <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20 px-4 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-widest animate-pulse">
+                ANALYZING RANGE: {format(startDate, 'MMM d')} - {format(endDate, 'MMM d')}
+              </Badge>
+              <Button variant="ghost" onClick={clearRange} className="h-9 text-[9px] font-black text-red-500 hover:text-white hover:bg-red-500/20 gap-2 rounded-xl px-4 transition-all tracking-[0.2em] uppercase">
+                <XCircle className="w-3.5 h-3.5" /> CLEAR RANGE
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -520,7 +530,7 @@ export function CalendarDashboard() {
                                 <Eye className="w-3 h-3 mr-1" /> VIEW BREAKDOWN
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-5xl bg-zinc-950 border-zinc-800 text-white h-[80vh] flex flex-col p-0 overflow-hidden shadow-2xl">
+                            <DialogContent className="max-w-5xl bg-zinc-950 border-zinc-800 text-white h-[80vh] flex flex-col p-0 overflow-hidden shadow-2xl z-[1100]">
                               <DialogHeader className="p-8 border-b border-zinc-900 bg-zinc-950">
                                 <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
                                   <Search className="w-6 h-6 text-emerald-500" />
@@ -672,7 +682,7 @@ export function CalendarDashboard() {
                   <p className="text-zinc-500 font-bold text-[10px] uppercase tracking-[0.2em] max-w-md mx-auto leading-relaxed">
                     Interactive calendar grid is optimized for daily operations. For range analysis, use the summary cards above to see occupied vs available slots by day and studio.
                   </p>
-                  <Button onClick={() => setDate(startDate || date)} variant="secondary" className="h-12 rounded-xl px-10 font-black uppercase tracking-widest text-[10px] bg-white text-black hover:bg-zinc-200 gap-3">
+                  <Button onClick={() => { setDate(startDate || date); clearRange(); }} variant="secondary" className="h-12 rounded-xl px-10 font-black uppercase tracking-widest text-[10px] bg-white text-black hover:bg-zinc-200 gap-3">
                     <LayoutList className="w-4 h-4" /> SWITCH TO DAY VIEW
                   </Button>
               </div>
