@@ -32,7 +32,8 @@ import {
   HelpCircle,
   Clock,
   User,
-  Layers
+  Layers,
+  MapPin
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -235,7 +236,7 @@ export default function BulkBookingPage() {
                                       (entry.isDuplicate || entry.conflicts.studio) ? "text-red-500" : "text-yellow-500"
                                     )}>
                                       <AlertCircle className="w-3 h-3" />
-                                      Conflict Details
+                                      {entry.conflicts.teacher && !entry.conflicts.studio ? "Teacher Conflict" : "Occupancy Conflict"}
                                     </h4>
                                     {entry.conflictingSlot ? (
                                       <div className="space-y-2.5 bg-zinc-900 p-3 rounded-xl border border-white/5">
@@ -259,20 +260,22 @@ export default function BulkBookingPage() {
                                             <p className="text-[10px] font-black uppercase">{entry.conflictingSlot.time}</p>
                                           </div>
                                         </div>
+                                        <div className="space-y-1 pt-1">
+                                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                              <MapPin className="w-3 h-3" /> Studio Location
+                                            </p>
+                                            <p className="text-[10px] font-black uppercase text-orange-500">{entry.conflictingSlot.studio || entry.studio}</p>
+                                        </div>
                                         <Badge variant="outline" className="w-full justify-center bg-zinc-950 text-[7px] font-black uppercase tracking-widest">
                                           TYPE: {entry.conflictingSlot.type}
                                         </Badge>
                                       </div>
-                                    ) : entry.conflicts.teacher ? (
-                                      <div className="bg-yellow-500/5 p-3 rounded-xl border border-yellow-500/20">
-                                        <p className="text-[9px] text-yellow-500 font-black uppercase tracking-widest">
-                                          Teacher {entry.teacher} is already assigned to another class in a different studio during this time.
+                                    ) : (
+                                      <div className="bg-zinc-900 p-3 rounded-xl border border-white/5">
+                                        <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
+                                          Conflict with existing schedule or mandatory preparation window.
                                         </p>
                                       </div>
-                                    ) : (
-                                      <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
-                                        Conflict with existing schedule or mandatory preparation window.
-                                      </p>
                                     )}
                                   </div>
                                 </PopoverContent>

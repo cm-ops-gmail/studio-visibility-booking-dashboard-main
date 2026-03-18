@@ -58,9 +58,6 @@ function parseTime(timeStr: string, referenceDay: Date): Date | null {
   return null;
 }
 
-/**
- * Robustly splits a TSV line while respecting quoted fields which may contain newlines or tabs.
- */
 function robustSplit(text: string, separator: string = '\t'): string[] {
   const result: string[] = [];
   let current = "";
@@ -79,9 +76,6 @@ function robustSplit(text: string, separator: string = '\t'): string[] {
   return result;
 }
 
-/**
- * Robustly gets lines from raw text, respecting quoted newlines.
- */
 function robustGetLines(text: string): string[] {
   const lines: string[] = [];
   let current = "";
@@ -197,7 +191,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
         const studioName = normalizeStudio(studioRaw);
         existingOccupancy.push({
             studio: studioName,
-            teacher: teacherRaw.trim(),
+            teacher: (teacherRaw || '').trim(),
             start, end,
             isPrep: false,
             productType,
@@ -263,8 +257,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     let conflictingSlot: any = null;
 
     existingOccupancy.forEach(occ => {
-      // Logic: Only check rows that match either the studio (for occupancy) or the teacher (for cross-studio double booking)
       const occTeacherNorm = (occ.teacher || '').trim().toLowerCase();
+      // Check if this occupancy matches either the studio or the teacher name
       if (occ.studio !== studioMatch && occTeacherNorm !== teacherNorm) return;
 
       const overlap = areIntervalsOverlapping(
@@ -275,11 +269,13 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       if (overlap) {
         if (occ.studio === studioMatch) {
           conflicts.studio = true;
+          // Studio conflict detail
           conflictingSlot = {
             subject: occ.subject,
             teacher: occ.teacher,
             time: `${format(occ.start, 'h:mm a')} - ${format(occ.end, 'h:mm a')}`,
-            type: occ.isPrep ? 'PREPARATION' : (occ.productType || 'CLASS')
+            type: occ.isPrep ? 'PREPARATION' : (occ.productType || 'CLASS'),
+            studio: occ.studio
           };
           if (!occ.isPrep && occ.start.getTime() === startTime.getTime() && occ.end.getTime() === endTime.getTime()) {
             isDuplicate = true;
@@ -289,6 +285,16 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
         // Check for teacher double booking (ignore 'TBA' or empty names)
         if (!occ.isPrep && teacherNorm !== 'tba' && teacherNorm !== '' && occTeacherNorm === teacherNorm) {
           conflicts.teacher = true;
+          // Store teacher conflict info if we don't already have a studio conflict blocking this slot
+          if (!conflictingSlot) {
+            conflictingSlot = {
+              subject: occ.subject,
+              teacher: occ.teacher,
+              time: `${format(occ.start, 'h:mm a')} - ${format(occ.end, 'h:mm a')}`,
+              type: 'TEACHER DOUBLE BOOKING',
+              studio: occ.studio
+            };
+          }
         }
       }
     });
