@@ -4,6 +4,8 @@ const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '13H2FFJ8WzKbis-Ud9S
 const SHEET_NAME = 'Daywise_Class_OPS';
 const REQUESTS_SHEET_NAME = 'Requests';
 const BULK_SHEET_NAME = 'Bulk Slot Booking';
+const CENTRAL_OPS_SHEET_NAME = 'Central_Class_Ops';
+const RECORD_SHOOT_SHEET_NAME = 'Record_Shoot_Central';
 
 const CREDENTIALS = {
   type: "service_account",
@@ -40,7 +42,7 @@ AdIemxZqJ2/0pQnTLSSrygzI
   client_email: process.env.GOOGLE_CLIENT_EMAIL || "requisition-dashboard-edit@pelagic-range-466218-p1.iam.gserviceaccount.com",
 };
 
-export async function getSheetData() {
+async function getGenericSheetData(sheetName: string) {
   try {
     const auth = new google.auth.GoogleAuth({
       credentials: CREDENTIALS,
@@ -50,18 +52,17 @@ export async function getSheetData() {
     const sheets = google.sheets({ version: 'v4', auth });
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:ZZ`,
+      range: `${sheetName}!A:ZZ`,
     });
 
     const rows = response.data.values;
-    if (!rows || rows.length < 3) return [];
+    if (!rows || rows.length < 1) return [];
 
     const headers = (rows[0] || []).map(h => String(h || '').trim());
-    
-    return rows.slice(2)
+    return rows.slice(1)
       .filter(row => row && row.length > 0)
       .map((row, index) => {
-        const obj: any = { id: `row-${index}` };
+        const obj: any = { id: `${sheetName}-${index}` };
         headers.forEach((header, i) => {
           if (header) {
             obj[header] = row[i];
@@ -70,69 +71,29 @@ export async function getSheetData() {
         return obj;
       });
   } catch (error: any) {
-    console.error('Error fetching google sheet data:', error.message || error);
+    console.error(`Error fetching ${sheetName} data:`, error.message || error);
     return [];
   }
+}
+
+export async function getSheetData() {
+  return getGenericSheetData(SHEET_NAME);
 }
 
 export async function getRequestsData() {
-  try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: CREDENTIALS,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${REQUESTS_SHEET_NAME}!A:G`,
-    });
-
-    const rows = response.data.values;
-    if (!rows || rows.length < 2) return [];
-
-    const headers = rows[0].map(h => String(h || '').trim());
-    return rows.slice(1).map((row) => {
-      const obj: any = {};
-      headers.forEach((header, i) => {
-        obj[header] = row[i];
-      });
-      return obj;
-    });
-  } catch (error: any) {
-    console.error('Error fetching requests from sheet:', error.message || error);
-    return [];
-  }
+  return getGenericSheetData(REQUESTS_SHEET_NAME);
 }
 
 export async function getBulkBookingData() {
-  try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: CREDENTIALS,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+  return getGenericSheetData(BULK_SHEET_NAME);
+}
 
-    const sheets = google.sheets({ version: 'v4', auth });
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${BULK_SHEET_NAME}!A:ZZ`,
-    });
+export async function getCentralOpsData() {
+  return getGenericSheetData(CENTRAL_OPS_SHEET_NAME);
+}
 
-    const rows = response.data.values;
-    if (!rows || rows.length < 1) return [];
-
-    const headers = rows[0].map(h => String(h || '').trim());
-    return rows.slice(1).map((row, index) => {
-      const obj: any = { id: `bulk-${index}` };
-      headers.forEach((header, i) => {
-        obj[header] = row[i];
-      });
-      return obj;
-    });
-  } catch (error: any) {
-    console.error('Error fetching bulk bookings:', error.message || error);
-    return [];
-  }
+export async function getRecordShootData() {
+  return getGenericSheetData(RECORD_SHOOT_SHEET_NAME);
 }
 
 export async function appendBulkBookingData(data: string[][]) {
