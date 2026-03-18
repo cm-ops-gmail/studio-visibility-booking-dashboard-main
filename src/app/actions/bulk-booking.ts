@@ -27,6 +27,7 @@ const ALLOWED_STUDIOS = [
 function normalizeStudio(name: string): string {
   const s = String(name || '').trim().toLowerCase();
   if (!s) return '';
+  if (s.includes('green room')) return 'Green Room';
   const match = ALLOWED_STUDIOS.find(allowed => 
     allowed.toLowerCase() === s || allowed.toLowerCase().startsWith(s + ' -')
   );
@@ -87,7 +88,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     getRequestsData()
   ]);
 
-  // Combine all "occupied" intervals
+  // Combined list of "occupied" intervals
   const existingOccupancy: Array<{ 
     studio: string; 
     teacher: string; 
@@ -97,55 +98,89 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     productType: string;
   }> = [];
 
-  const processExisting = (data: any[]) => {
-    data.forEach(row => {
-      let startStr = row.StartTimeISO || row.startTime;
-      let endStr = row.EndTimeISO || row.endTime;
-      let studio = row.Studio || row.studio;
-      let teacher = row['Teacher 1'] || row.teacher;
-      let pType = row['Product Type'] || row.productType || '';
+  // 1. Process Main Sheet Data (Requires Parsing)
+  sheetData.forEach(row => {
+    const dateVal = String(row.Date || '').trim();
+    const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
+    const studioRaw = String(row.Studio || row['Studio Name'] || '').trim();
+    
+    const parsedDay = parseSheetDate(dateVal);
+    if (!parsedDay) return;
 
-      if (!startStr || !endStr) return;
-      
-      const start = new Date(startStr);
-      const end = new Date(endStr);
-      const normalizedStudioName = normalizeStudio(studio);
+    const startTime = parseTime(timeVal, parsedDay);
+    if (!startTime) return;
+    const endTime = addHours(startTime, CLASS_DURATION_HOURS);
+    const studioName = normalizeStudio(studioRaw);
 
-      // The Class itself
-      existingOccupancy.push({
-        studio: normalizedStudioName,
-        teacher: (teacher || '').trim(),
-        start,
-        end,
-        isPrep: false,
-        productType: pType
-      });
-
-      // The Preparation slot (30 mins before)
-      // Prep slots only exist for non-studio-booking classes
-      if (!pType.toLowerCase().includes('studio booking')) {
-        existingOccupancy.push({
-          studio: normalizedStudioName,
-          teacher: 'Ops Team',
-          start: subMinutes(start, PREP_DURATION_MINUTES),
-          end: start,
-          isPrep: true,
-          productType: 'PREPARATION'
-        });
-      }
+    existingOccupancy.push({
+      studio: studioName,
+      teacher: (row['Teacher 1'] || row.Teacher || '').trim(),
+      start: startTime,
+      end: endTime,
+      isPrep: false,
+      productType: row['Product Type'] || ''
     });
-  };
 
-  processExisting(sheetData);
-  processExisting(bulkData);
-  processExisting(requestsData.filter(r => r.Status === 'approved' || r.Status === 'pending').map(r => ({
-    startTime: r.StartTime,
-    // Note: Request duration parsing logic
-    endTime: new Date(new Date(r.StartTime).getTime() + (r.Duration === '30 mins' ? 30 : r.Duration === '2 hrs' ? 120 : 60) * 60000).toISOString(),
-    Studio: r.Studio,
-    'Product Type': 'Studio Booking'
-  })));
+    // Add Prep Slot
+    if (!(row['Product Type'] || '').toLowerCase().includes('studio booking')) {
+      existingOccupancy.push({
+        studio: studioName,
+        teacher: 'Ops Team',
+        start: subMinutes(startTime, PREP_DURATION_MINUTES),
+        end: startTime,
+        isPrep: true,
+        productType: 'PREPARATION'
+      });
+    }
+  });
 
+  // 2. Process Bulk Sheet Data (Already has ISO timestamps)
+  bulkData.forEach(row => {
+    if (!row.StartTimeISO || !row.EndTimeISO) return;
+    const start = new Date(row.StartTimeISO);
+    const end = new Date(row.EndTimeISO);
+    const studioName = normalizeStudio(row.Studio);
+
+    existingOccupancy.push({
+      studio: studioName,
+      teacher: (row['Teacher 1'] || row.teacher || '').trim(),
+      start,
+      end,
+      isPrep: false,
+      productType: row['Product Type'] || ''
+    });
+
+    if (!(row['Product Type'] || '').toLowerCase().includes('studio booking')) {
+      existingOccupancy.push({
+        studio: studioName,
+        teacher: 'Ops Team',
+        start: subMinutes(start, PREP_DURATION_MINUTES),
+        end: start,
+        isPrep: true,
+        productType: 'PREPARATION'
+      });
+    }
+  });
+
+  // 3. Process Pending/Approved Requests
+  requestsData.forEach(r => {
+    if ((r.Status !== 'approved' && r.Status !== 'pending') || !r.StartTime) return;
+    const start = new Date(r.StartTime);
+    let durationHrs = r.Duration === '30 mins' ? 0.5 : (r.Duration === '1 hr 30 mins' ? 1.5 : (r.Duration === '2 hrs' ? 2 : 1));
+    const end = addHours(start, durationHrs);
+    const studioName = normalizeStudio(r.Studio);
+
+    existingOccupancy.push({
+      studio: studioName,
+      teacher: 'User Request',
+      start,
+      end,
+      isPrep: false,
+      productType: 'STUDIO BOOKING'
+    });
+  });
+
+  // Now validate the new bulk entries
   rows.forEach((row, i) => {
     const dateStr = row[dateIdx];
     const timeStr = row[timeIdx];
@@ -182,7 +217,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
             isDuplicate = true;
           }
         }
-        if (!occ.isPrep && occ.teacher && occ.teacher === teacher && teacher !== 'TBA') {
+        if (!occ.isPrep && occ.teacher && occ.teacher === teacher && teacher !== 'TBA' && teacher !== '') {
           conflicts.teacher = true;
         }
       }
