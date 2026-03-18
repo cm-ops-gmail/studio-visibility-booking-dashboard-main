@@ -1,4 +1,3 @@
-
 import { google } from 'googleapis';
 
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '13H2FFJ8WzKbis-Ud9SXlea9NNTM6exnOaguML8MVZI4';
@@ -70,8 +69,8 @@ export async function getSheetData() {
         });
         return obj;
       });
-  } catch (error) {
-    console.error('Error fetching google sheet data:', error);
+  } catch (error: any) {
+    console.error('Error fetching google sheet data:', error.message || error);
     return [];
   }
 }
@@ -100,8 +99,8 @@ export async function getRequestsData() {
       });
       return obj;
     });
-  } catch (error) {
-    console.error('Error fetching requests from sheet:', error);
+  } catch (error: any) {
+    console.error('Error fetching requests from sheet:', error.message || error);
     return [];
   }
 }
@@ -130,8 +129,8 @@ export async function getBulkBookingData() {
       });
       return obj;
     });
-  } catch (error) {
-    console.error('Error fetching bulk bookings:', error);
+  } catch (error: any) {
+    console.error('Error fetching bulk bookings:', error.message || error);
     return [];
   }
 }
@@ -145,7 +144,6 @@ export async function appendBulkBookingData(data: string[][]) {
 
     const sheets = google.sheets({ version: 'v4', auth });
     
-    // Check if sheet exists, if not create it with headers
     try {
       await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -169,8 +167,8 @@ export async function appendBulkBookingData(data: string[][]) {
         values: data,
       },
     });
-  } catch (error) {
-    console.error('Error appending bulk booking to sheet:', error);
+  } catch (error: any) {
+    console.error('Error appending bulk booking to sheet:', error.message || error);
   }
 }
 
@@ -190,8 +188,8 @@ export async function appendRequestData(data: string[]) {
         values: [data],
       },
     });
-  } catch (error) {
-    console.error('Error appending request to sheet:', error);
+  } catch (error: any) {
+    console.error('Error appending request to sheet:', error.message || error);
   }
 }
 
@@ -223,7 +221,7 @@ export async function updateRequestStatusInSheet(id: string, status: string) {
         values: [[status]],
       },
     });
-  } catch (error) {
-    console.error('Error updating status in sheet:', error);
+  } catch (error: any) {
+    console.error('Error updating status in sheet:', error.message || error);
   }
 }
