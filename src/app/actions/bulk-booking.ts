@@ -159,6 +159,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     productType: string;
     subject: string;
     topic: string;
+    dateKey: string;
   }> = [];
 
   const addOccupancy = (row: any, isBulk: boolean = false) => {
@@ -169,12 +170,13 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     let subject = '';
     let topic = '';
     let productType = '';
+    let parsedDay: Date | null = null;
 
     if (isBulk) {
+        const dateVal = getProp(row, ['Date', 'date']);
+        parsedDay = parseSheetDate(dateVal);
         const sISO = getProp(row, ['StartTimeISO', 'startTimeISO', 'startTime']);
         const eISO = getProp(row, ['EndTimeISO', 'endTimeISO', 'endTime']);
-        const dateVal = getProp(row, ['Date', 'date']);
-        const parsedDay = parseSheetDate(dateVal);
 
         if (sISO) {
           start = new Date(sISO);
@@ -197,10 +199,10 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
         productType = getProp(row, ['Product Type']) || '';
     } else {
         const dateVal = String(getProp(row, ['Date']) || '').trim();
-        const timeVal = String(getProp(row, ['Scheduled Time', 'Time', 'Start Time']) || '').trim();
-        const endTimeVal = String(getProp(row, ['End Time', 'Scheduled End Time']) || '').trim();
-        const parsedDay = parseSheetDate(dateVal);
+        parsedDay = parseSheetDate(dateVal);
         if (parsedDay) {
+            const timeVal = String(getProp(row, ['Scheduled Time', 'Time', 'Start Time']) || '').trim();
+            const endTimeVal = String(getProp(row, ['End Time', 'Scheduled End Time']) || '').trim();
             start = parseTime(timeVal, parsedDay);
             if (start) {
                 end = parseTime(endTimeVal, parsedDay) || addHours(start, 2);
@@ -213,8 +215,9 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
         productType = getProp(row, ['Product Type']) || '';
     }
 
-    if (start && end && isValid(start) && isValid(end)) {
+    if (start && end && isValid(start) && isValid(end) && parsedDay) {
         const studioName = normalizeStudio(studioRaw);
+        const dateKey = format(parsedDay, 'yyyy-MM-dd');
         existingOccupancy.push({
             studio: studioName,
             teacher: (teacherRaw || '').trim(),
@@ -222,7 +225,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
             isPrep: false,
             productType,
             subject,
-            topic
+            topic,
+            dateKey
         });
 
         if (!productType.toLowerCase().includes('studio booking')) {
@@ -234,7 +238,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
                 isPrep: true,
                 productType: 'PREPARATION',
                 subject: `Prep for ${subject}`,
-                topic: 'Mandatory Studio Preparation'
+                topic: 'Mandatory Studio Preparation',
+                dateKey
             });
         }
     }
@@ -256,7 +261,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       isPrep: false,
       productType: 'STUDIO BOOKING',
       subject: r.Status === 'approved' ? 'Approved Request' : 'Pending Request',
-      topic: `Requested Duration: ${r.Duration}`
+      topic: `Requested Duration: ${r.Duration}`,
+      dateKey: format(start, 'yyyy-MM-dd')
     });
   });
 
@@ -284,6 +290,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     const teacherNorm = teacher.trim().toLowerCase();
     const subject = subjectIdx !== -1 ? (row[subjectIdx] || '') : '';
     const topic = topicIdx !== -1 ? (row[topicIdx] || '') : '';
+    const dateKey = format(parsedDay, 'yyyy-MM-dd');
 
     const conflicts = { studio: false, teacher: false };
     let isDuplicate = false;
@@ -292,6 +299,9 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     const allCheckable = [...existingOccupancy, ...batchOccupancy];
 
     allCheckable.forEach(occ => {
+      // RULE: Different dates CANNOT conflict.
+      if (occ.dateKey !== dateKey) return;
+
       const occTeacherNorm = (occ.teacher || '').trim().toLowerCase();
       
       if (occ.studio !== studioMatch && occTeacherNorm !== teacherNorm) return;
@@ -363,7 +373,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       isPrep: false,
       productType: productTypeIdx !== -1 ? (row[productTypeIdx] || '') : 'BATCH PREVIEW',
       subject: subject || 'Batch Preview',
-      topic: topic
+      topic: topic,
+      dateKey
     });
   });
 
