@@ -55,12 +55,12 @@ export default function BulkBookingPage() {
         toast({ 
           variant: "destructive", 
           title: "Parsing Failed", 
-          description: "Check if the data is tab-separated and contains Date, Scheduled Time, and Studio columns." 
+          description: "Could not find required columns (Date, Scheduled Time, Studio). Ensure headers are included." 
         });
       } else {
         toast({
           title: "Preview Generated",
-          description: `Processed ${data.length} rows.`
+          description: `Identified ${data.length} potential slots.`
         });
       }
     } catch (e) {
@@ -76,13 +76,13 @@ export default function BulkBookingPage() {
     try {
       const result = await submitBulkBookings(preview);
       toast({ 
-        title: "Bulk Booking Complete", 
+        title: "Bulk Booking Successful", 
         description: `Successfully added ${result.count} new slots to the system.` 
       });
       setPreview([]);
       setRawData('');
     } catch (e) {
-      toast({ variant: "destructive", title: "Submission Failed" });
+      toast({ variant: "destructive", title: "Submission Failed", description: "Could not write data to spreadsheet." });
     } finally {
       setSubmitting(false);
     }
@@ -118,7 +118,7 @@ export default function BulkBookingPage() {
                 Paste Data from Google Sheets
               </CardTitle>
               <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
-                Copy rows including headers (Date, Start Time, Studio, Teacher, etc.) and paste them below. Any additional columns will be ignored.
+                Copy rows including headers. The system will automatically map the required columns even if there are extra ones.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -131,7 +131,10 @@ export default function BulkBookingPage() {
               <div className="flex gap-4">
                 <Button 
                   variant="outline"
-                  onClick={() => setRawData('')}
+                  onClick={() => {
+                    setRawData('');
+                    setPreview([]);
+                  }}
                   className="h-12 border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-white"
                 >
                   CLEAR
@@ -277,7 +280,7 @@ export default function BulkBookingPage() {
                  {readyCount === 0 && preview.length > 0 && (
                    <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest flex items-center gap-2">
                      <XCircle className="w-4 h-4" />
-                     No valid slots found in this batch.
+                     No valid slots found to book.
                    </p>
                  )}
                 <Button 

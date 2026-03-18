@@ -85,15 +85,16 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
   const topicIdx = findIdx(['Topic']);
   const productTypeIdx = findIdx(['Product Type']);
 
-  // If End Time header not found, check if column after Time has time values
+  // Smart Inference for End Time: If header is blank but next to Time, and rows contain time-like strings
   if (endTimeIdx === -1 && timeIdx !== -1 && rows.length > 0) {
-    const firstRowVal = rows[0][timeIdx + 1];
-    if (firstRowVal && /^\d{1,2}:\d{2}/.test(firstRowVal)) {
+    const possibleEndTimeVal = rows[0][timeIdx + 1];
+    // Check if it looks like a time string (e.g., 8:30 PM)
+    if (possibleEndTimeVal && /^\d{1,2}:\d{2}/.test(possibleEndTimeVal)) {
       endTimeIdx = timeIdx + 1;
     }
   }
 
-  // Required checks
+  // Required checks: Must have Date, Time, and Studio
   if (dateIdx === -1 || timeIdx === -1 || studioIdx === -1) {
     return [];
   }
@@ -116,7 +117,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     subject: string;
   }> = [];
 
-  // Parse Main Sheet existing bookings
+  // 1. Parse Main Sheet existing bookings
   sheetData.forEach(row => {
     const dateVal = String(row.Date || '').trim();
     const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
@@ -161,7 +162,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     }
   });
 
-  // Parse Existing Bulk Bookings
+  // 2. Parse Existing Bulk Bookings
   bulkData.forEach(row => {
     const startTimeISO = row.StartTimeISO || row.startTimeISO || row.startTime || row.StartTime;
     const endTimeISO = row.EndTimeISO || row.endTimeISO || row.endTime || row.EndTime;
@@ -197,7 +198,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     }
   });
 
-  // Parse Pending/Approved Requests
+  // 3. Parse Pending/Approved Requests
   requestsData.forEach(r => {
     if ((r.Status !== 'approved' && r.Status !== 'pending') || !r.StartTime) return;
     const start = new Date(r.StartTime);
@@ -217,6 +218,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     });
   });
 
+  // Process Rows from Textarea
   rows.forEach((row, i) => {
     const dateStr = row[dateIdx];
     const startTimeStr = row[timeIdx];
@@ -249,7 +251,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     existingOccupancy.forEach(occ => {
       if (occ.studio !== studioMatch && occ.teacher !== teacher) return;
 
-      // Check for overlap (non-inclusive of endpoints)
+      // Check for overlap (exclusive of endpoints)
       const overlap = areIntervalsOverlapping(
         { start: startTime, end: endTime },
         { start: occ.start, end: occ.end }
