@@ -15,6 +15,11 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { 
   AlertCircle, 
   CheckCircle2, 
@@ -23,7 +28,11 @@ import {
   Loader2, 
   AlertTriangle,
   Info,
-  XCircle
+  XCircle,
+  HelpCircle,
+  Clock,
+  User,
+  Layers
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -132,22 +141,16 @@ export default function BulkBookingPage() {
           {preview.length > 0 && (
             <div className="space-y-6 animate-in-fade">
               <div className="flex flex-wrap gap-4">
-                {studioConflicts > 0 && (
+                {(studioConflicts > 0 || duplicates > 0) && (
                   <Badge variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest">
                     <AlertTriangle className="w-4 h-4" />
-                    {studioConflicts} Studio/Prep Conflicts
+                    {studioConflicts + duplicates} Occupied Slots
                   </Badge>
                 )}
                 {teacherConflicts > 0 && (
                   <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest">
                     <Info className="w-4 h-4" />
                     {teacherConflicts} Teacher Conflicts
-                  </Badge>
-                )}
-                {duplicates > 0 && (
-                  <Badge variant="outline" className="bg-zinc-800 text-zinc-400 border-zinc-700 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest">
-                    <AlertCircle className="w-4 h-4" />
-                    {duplicates} Duplicates
                   </Badge>
                 )}
                 <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest ml-auto">
@@ -199,10 +202,57 @@ export default function BulkBookingPage() {
                             <p className="text-[9px] font-bold text-zinc-500 truncate">{entry.topic}</p>
                           </TableCell>
                           <TableCell className="text-center">
-                            {entry.isDuplicate ? (
-                              <Badge variant="outline" className="bg-zinc-800 text-zinc-500 text-[8px] uppercase">DUPLICATE</Badge>
-                            ) : entry.conflicts.studio ? (
-                              <Badge variant="outline" className="bg-red-500/10 text-red-500 text-[8px] uppercase">CONFLICT</Badge>
+                            {entry.isDuplicate || entry.conflicts.studio ? (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Badge 
+                                    variant="outline" 
+                                    className="bg-red-500/10 text-red-500 text-[8px] uppercase cursor-pointer hover:bg-red-500/20 transition-all gap-1.5"
+                                  >
+                                    This slot is Already occupied
+                                    <HelpCircle className="w-2.5 h-2.5" />
+                                  </Badge>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 bg-zinc-950 border-zinc-800 p-4 shadow-2xl z-[1000]">
+                                  <div className="space-y-3">
+                                    <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                                      <AlertCircle className="w-3 h-3" />
+                                      Conflict Details
+                                    </h4>
+                                    {entry.conflictingSlot ? (
+                                      <div className="space-y-2.5 bg-zinc-900 p-3 rounded-xl border border-white/5">
+                                        <div className="space-y-1">
+                                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                            <Layers className="w-3 h-3" /> Subject
+                                          </p>
+                                          <p className="text-xs font-black uppercase">{entry.conflictingSlot.subject}</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div className="space-y-1">
+                                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                              <User className="w-3 h-3" /> Teacher
+                                            </p>
+                                            <p className="text-[10px] font-black uppercase">{entry.conflictingSlot.teacher}</p>
+                                          </div>
+                                          <div className="space-y-1">
+                                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                              <Clock className="w-3 h-3" /> Time
+                                            </p>
+                                            <p className="text-[10px] font-black uppercase">{entry.conflictingSlot.time}</p>
+                                          </div>
+                                        </div>
+                                        <Badge variant="outline" className="w-full justify-center bg-zinc-950 text-[7px] font-black uppercase tracking-widest">
+                                          TYPE: {entry.conflictingSlot.type}
+                                        </Badge>
+                                      </div>
+                                    ) : (
+                                      <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
+                                        Conflict with existing schedule or preparation window.
+                                      </p>
+                                    )}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
                             ) : (
                               <Badge className="bg-emerald-500/20 text-emerald-500 text-[8px] uppercase">READY</Badge>
                             )}

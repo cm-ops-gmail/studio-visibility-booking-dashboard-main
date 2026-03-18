@@ -54,4 +54,10 @@ export interface BulkPreviewEntry extends Omit<ClassBooking, 'isBooked'> {
     teacher: boolean;
   };
   isDuplicate: boolean;
+  conflictingSlot?: {
+    subject: string;
+    teacher: string;
+    time: string;
+    type: string;
+  };
 }
