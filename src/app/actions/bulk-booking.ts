@@ -1,8 +1,8 @@
 'use server';
 
 import { getSheetData, getBulkBookingData, getRequestsData, appendBulkBookingData } from '@/app/lib/google-sheets';
-import { BulkPreviewEntry, ClassBooking } from '@/app/lib/types';
-import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes, differenceInMinutes } from 'date-fns';
+import { BulkPreviewEntry } from '@/app/lib/types';
+import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes } from 'date-fns';
 
 const CLASS_DURATION_HOURS = 2;
 const PREP_DURATION_MINUTES = 30;
@@ -62,7 +62,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
   const lines = rawData.trim().split('\n');
   if (lines.length < 2) return [];
 
-  // Lenient header parsing
+  // Robust Header Cleaning
   const headers = lines[0].split('\t').map(h => h.trim().replace(/["']+/g, ''));
   const rows = lines.slice(1).map(l => l.split('\t').map(c => c.trim().replace(/["']+/g, '')));
 
@@ -76,14 +76,22 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     });
 
   const dateIdx = findIdx(['Date']);
-  const timeIdx = findIdx(['Scheduled Time', 'Start Time', 'Class Start Time']);
-  const endTimeIdx = findIdx(['End Time', 'Scheduled End Time']);
+  const timeIdx = findIdx(['Scheduled Time', 'Start Time', 'Class Start Time', 'Time']);
+  let endTimeIdx = findIdx(['End Time', 'Scheduled End Time', 'End']);
   const studioIdx = findIdx(['Studio']);
   const teacherIdx = findIdx(['Teacher 1', 'Teacher']);
   const courseIdx = findIdx(['Course']);
   const subjectIdx = findIdx(['Subject']);
   const topicIdx = findIdx(['Topic']);
   const productTypeIdx = findIdx(['Product Type']);
+
+  // If End Time header not found, check if column after Time has time values
+  if (endTimeIdx === -1 && timeIdx !== -1 && rows.length > 0) {
+    const firstRowVal = rows[0][timeIdx + 1];
+    if (firstRowVal && /^\d{1,2}:\d{2}/.test(firstRowVal)) {
+      endTimeIdx = timeIdx + 1;
+    }
+  }
 
   // Required checks
   if (dateIdx === -1 || timeIdx === -1 || studioIdx === -1) {
@@ -241,6 +249,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     existingOccupancy.forEach(occ => {
       if (occ.studio !== studioMatch && occ.teacher !== teacher) return;
 
+      // Check for overlap (non-inclusive of endpoints)
       const overlap = areIntervalsOverlapping(
         { start: startTime, end: endTime },
         { start: occ.start, end: occ.end }
@@ -255,6 +264,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
             time: `${format(occ.start, 'h:mm a')} - ${format(occ.end, 'h:mm a')}`,
             type: occ.isPrep ? 'PREPARATION' : (occ.productType || 'CLASS')
           };
+          // Check for exact duplicates
           if (!occ.isPrep && occ.start.getTime() === startTime.getTime() && occ.end.getTime() === endTime.getTime()) {
             isDuplicate = true;
           }
@@ -290,13 +300,11 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 }
 
 export async function submitBulkBookings(entries: BulkPreviewEntry[]) {
-  // Columns for the sheet: Date, Scheduled Time (Start), End Time, Product Type, Course, Subject, Topic, Teacher 1, Studio
-  // Internal Columns for sync: StartTimeISO, EndTimeISO
   const toSubmit = entries
     .filter(e => !e.isDuplicate && !e.conflicts.studio)
     .map(e => [
       e.date,               // Date
-      e.startTimeLabel,     // Scheduled Time (Only Start Time as requested)
+      e.startTimeLabel,     // Scheduled Time (Only Start)
       e.endTimeLabel || '', // End Time
       e.productType,        // Product Type
       e.course,             // Course
@@ -304,8 +312,8 @@ export async function submitBulkBookings(entries: BulkPreviewEntry[]) {
       e.topic,              // Topic
       e.teacher,            // Teacher 1
       e.studio,             // Studio
-      e.startTime,          // StartTimeISO (Internal for dashboard)
-      e.endTime             // EndTimeISO (Internal for dashboard)
+      e.startTime,          // StartTimeISO
+      e.endTime             // EndTimeISO
     ]);
 
   if (toSubmit.length > 0) {
