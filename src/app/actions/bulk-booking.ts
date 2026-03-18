@@ -100,6 +100,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
   sheetData.forEach(row => {
     const dateVal = String(row.Date || '').trim();
     const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
+    const endTimeVal = String(row['End Time'] || row['Scheduled End Time'] || '').trim();
     const studioRaw = String(row.Studio || row['Studio Name'] || '').trim();
     const subject = row.Subject || 'Main Schedule Class';
     
@@ -108,7 +109,13 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 
     const startTime = parseTime(timeVal, parsedDay);
     if (!startTime) return;
-    const endTime = addHours(startTime, CLASS_DURATION_HOURS);
+    
+    let endTime = addHours(startTime, CLASS_DURATION_HOURS);
+    if (endTimeVal) {
+      const parsedEnd = parseTime(endTimeVal, parsedDay);
+      if (parsedEnd && parsedEnd > startTime) endTime = parsedEnd;
+    }
+
     const studioName = normalizeStudio(studioRaw);
 
     existingOccupancy.push({
@@ -197,7 +204,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     const startTime = parseTime(startTimeStr, parsedDay);
     if (!startTime) return;
 
-    // Use End Time column if available, otherwise default to 2 hours
     let endTime = addHours(startTime, CLASS_DURATION_HOURS);
     if (endTimeStr) {
       const parsedEndTime = parseTime(endTimeStr, parsedDay);
@@ -213,6 +219,10 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     let conflictingSlot: any = null;
 
     existingOccupancy.forEach(occ => {
+      if (occ.studio !== studioMatch && occ.teacher !== teacher) return;
+
+      // areIntervalsOverlapping uses {inclusive: false} by default in date-fns v3
+      // This means touching at the end/start is NOT an overlap.
       const overlap = areIntervalsOverlapping(
         { start: startTime, end: endTime },
         { start: occ.start, end: occ.end }
@@ -227,7 +237,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
             time: `${format(occ.start, 'h:mm a')} - ${format(occ.end, 'h:mm a')}`,
             type: occ.isPrep ? 'PREPARATION' : (occ.productType || 'CLASS')
           };
-          // Check if it's an exact duplicate class (not just a prep overlap)
           if (!occ.isPrep && occ.start.getTime() === startTime.getTime() && occ.end.getTime() === endTime.getTime()) {
             isDuplicate = true;
           }

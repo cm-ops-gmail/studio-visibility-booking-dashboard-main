@@ -75,6 +75,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     .map((row, index) => {
       const dateVal = String(row.Date || '').trim();
       const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
+      const endTimeVal = String(row['End Time'] || row['Scheduled End Time'] || '').trim();
       const studioRaw = String(row.Studio || row['Studio Name'] || '').trim();
       
       const parsedDay = parseSheetDate(dateVal);
@@ -88,7 +89,12 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
 
       const startTime = parseTime(timeVal, referenceDay);
       if (!startTime) return null;
-      const endTime = addHours(startTime, CLASS_DURATION_HOURS);
+      
+      let endTime = addHours(startTime, CLASS_DURATION_HOURS);
+      if (endTimeVal) {
+        const parsedEnd = parseTime(endTimeVal, referenceDay);
+        if (parsedEnd && parsedEnd > startTime) endTime = parsedEnd;
+      }
 
       return {
         id: `row-${index}`, 
