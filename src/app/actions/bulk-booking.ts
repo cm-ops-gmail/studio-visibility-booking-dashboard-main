@@ -2,7 +2,7 @@
 
 import { getSheetData, getBulkBookingData, getRequestsData, appendBulkBookingData } from '@/app/lib/google-sheets';
 import { BulkPreviewEntry } from '@/app/lib/types';
-import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes, startOfDay, isSameDay } from 'date-fns';
+import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes } from 'date-fns';
 
 const CLASS_DURATION_HOURS = 2;
 const PREP_DURATION_MINUTES = 30;
@@ -36,32 +36,15 @@ function normalizeStudio(name: string): string {
 
 function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  const clean = dateStr.trim();
-  
-  // Try "Friday, March 27, 2026"
-  const parts = clean.split(',').map(p => p.trim());
+  const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
     const monthDay = parts[1];
     const year = parts[2] || new Date().getFullYear().toString();
     const d = parse(`${monthDay} ${year}`, 'MMMM d yyyy', new Date());
-    if (isValid(d)) return startOfDay(d);
+    if (isValid(d)) return d;
   }
-
-  // Try standard JS date parsing (for "3/27/2026" etc)
-  const d = new Date(clean);
-  if (isValid(d)) {
-    // If it's an ISO string, it might be UTC. We want the local day.
-    return startOfDay(d);
-  }
-
-  // Fallback: try parsing common numeric formats
-  const formats = ['MM/dd/yyyy', 'd/M/yyyy', 'yyyy-MM-dd', 'dd-MMM-yyyy', 'MMM d, yyyy'];
-  for (const fmt of formats) {
-    const parsed = parse(clean, fmt, new Date());
-    if (isValid(parsed)) return startOfDay(parsed);
-  }
-
-  return null;
+  const d = new Date(dateStr);
+  return isValid(d) ? d : null;
 }
 
 function parseTime(timeStr: string, referenceDay: Date): Date | null {
@@ -176,7 +159,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     productType: string;
     subject: string;
     topic: string;
-    dateISO: string;
   }> = [];
 
   const addOccupancy = (row: any, isBulk: boolean = false) => {
@@ -189,10 +171,10 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     let productType = '';
 
     if (isBulk) {
-        const dateVal = getProp(row, ['Date', 'date']);
-        const parsedDay = parseSheetDate(dateVal);
         const sISO = getProp(row, ['StartTimeISO', 'startTimeISO', 'startTime']);
         const eISO = getProp(row, ['EndTimeISO', 'endTimeISO', 'endTime']);
+        const dateVal = getProp(row, ['Date', 'date']);
+        const parsedDay = parseSheetDate(dateVal);
 
         if (sISO) {
           start = new Date(sISO);
@@ -205,8 +187,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
           end = new Date(eISO);
         } else if (start) {
           const endTimeStr = getProp(row, ['End Time', 'scheduled end time']);
-          const parsedDayOfStart = parsedDay || startOfDay(start);
-          end = endTimeStr ? parseTime(endTimeStr, parsedDayOfStart) : addHours(start, 2);
+          end = (parsedDay && endTimeStr) ? parseTime(endTimeStr, parsedDay) : addHours(start, 2);
         }
 
         studioRaw = getProp(row, ['Studio', 'studio name']) || '';
@@ -216,10 +197,9 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
         productType = getProp(row, ['Product Type']) || '';
     } else {
         const dateVal = String(getProp(row, ['Date']) || '').trim();
-        const parsedDay = parseSheetDate(dateVal);
         const timeVal = String(getProp(row, ['Scheduled Time', 'Time', 'Start Time']) || '').trim();
         const endTimeVal = String(getProp(row, ['End Time', 'Scheduled End Time']) || '').trim();
-        
+        const parsedDay = parseSheetDate(dateVal);
         if (parsedDay) {
             start = parseTime(timeVal, parsedDay);
             if (start) {
@@ -242,8 +222,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
             isPrep: false,
             productType,
             subject,
-            topic,
-            dateISO: format(start, 'yyyy-MM-dd')
+            topic
         });
 
         if (!productType.toLowerCase().includes('studio booking')) {
@@ -255,8 +234,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
                 isPrep: true,
                 productType: 'PREPARATION',
                 subject: `Prep for ${subject}`,
-                topic: 'Mandatory Studio Preparation',
-                dateISO: format(start, 'yyyy-MM-dd')
+                topic: 'Mandatory Studio Preparation'
             });
         }
     }
@@ -278,8 +256,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       isPrep: false,
       productType: 'STUDIO BOOKING',
       subject: r.Status === 'approved' ? 'Approved Request' : 'Pending Request',
-      topic: `Requested Duration: ${r.Duration}`,
-      dateISO: format(start, 'yyyy-MM-dd')
+      topic: `Requested Duration: ${r.Duration}`
     });
   });
 
@@ -302,7 +279,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     let endTime = endTimeStr ? parseTime(endTimeStr, parsedDay) : null;
     if (!endTime || endTime <= startTime) endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
-    const targetDateISO = format(startTime, 'yyyy-MM-dd');
     const studioMatch = normalizeStudio(studioRaw);
     const teacher = teacherIdx !== -1 ? (row[teacherIdx] || 'TBA') : 'TBA';
     const teacherNorm = teacher.trim().toLowerCase();
@@ -316,13 +292,9 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     const allCheckable = [...existingOccupancy, ...batchOccupancy];
 
     allCheckable.forEach(occ => {
-      // 1. MUST BE THE SAME DAY
-      if (occ.dateISO !== targetDateISO) return;
-
       const occTeacherNorm = (occ.teacher || '').trim().toLowerCase();
       
-      // 2. ONLY CHECK OVERLAP IF STUDIO OR TEACHER MATCHES
-      if (occ.studio !== studioMatch && (teacherNorm === 'tba' || teacherNorm === '' || occTeacherNorm !== teacherNorm)) return;
+      if (occ.studio !== studioMatch && occTeacherNorm !== teacherNorm) return;
 
       const overlap = areIntervalsOverlapping(
         { start: startTime, end: endTime },
@@ -391,8 +363,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       isPrep: false,
       productType: productTypeIdx !== -1 ? (row[productTypeIdx] || '') : 'BATCH PREVIEW',
       subject: subject || 'Batch Preview',
-      topic: topic,
-      dateISO: targetDateISO
+      topic: topic
     });
   });
 
