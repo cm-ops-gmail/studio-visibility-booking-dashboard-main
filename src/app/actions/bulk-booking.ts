@@ -2,7 +2,7 @@
 
 import { getSheetData, getBulkBookingData, getRequestsData, appendBulkBookingData } from '@/app/lib/google-sheets';
 import { BulkPreviewEntry, ClassBooking } from '@/app/lib/types';
-import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes } from 'date-fns';
+import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes, differenceInMinutes } from 'date-fns';
 
 const CLASS_DURATION_HOURS = 2;
 const PREP_DURATION_MINUTES = 30;
@@ -70,6 +70,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 
   const dateIdx = findIndex(['Date']);
   const timeIdx = findIndex(['Scheduled Time', 'Start Time']);
+  const endTimeIdx = findIndex(['End Time', 'Scheduled End Time']);
   const studioIdx = findIndex(['Studio']);
   const teacherIdx = findIndex(['Teacher 1', 'Teacher']);
   const courseIdx = findIndex(['Course']);
@@ -95,6 +96,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     subject: string;
   }> = [];
 
+  // Parse Main Sheet existing bookings
   sheetData.forEach(row => {
     const dateVal = String(row.Date || '').trim();
     const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
@@ -132,6 +134,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     }
   });
 
+  // Parse Existing Bulk Bookings
   bulkData.forEach(row => {
     if (!row.StartTimeISO || !row.EndTimeISO) return;
     const start = new Date(row.StartTimeISO);
@@ -162,6 +165,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     }
   });
 
+  // Parse Pending/Approved Requests
   requestsData.forEach(r => {
     if ((r.Status !== 'approved' && r.Status !== 'pending') || !r.StartTime) return;
     const start = new Date(r.StartTime);
@@ -182,17 +186,26 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 
   rows.forEach((row, i) => {
     const dateStr = row[dateIdx];
-    const timeStr = row[timeIdx];
+    const startTimeStr = row[timeIdx];
+    const endTimeStr = endTimeIdx !== -1 ? row[endTimeIdx] : null;
     const studioRaw = row[studioIdx];
     const teacher = row[teacherIdx];
 
     const parsedDay = parseSheetDate(dateStr);
-    if (!parsedDay || !timeStr || !studioRaw) return;
+    if (!parsedDay || !startTimeStr || !studioRaw) return;
 
-    const startTime = parseTime(timeStr, parsedDay);
+    const startTime = parseTime(startTimeStr, parsedDay);
     if (!startTime) return;
 
-    const endTime = addHours(startTime, CLASS_DURATION_HOURS);
+    // Use End Time column if available, otherwise default to 2 hours
+    let endTime = addHours(startTime, CLASS_DURATION_HOURS);
+    if (endTimeStr) {
+      const parsedEndTime = parseTime(endTimeStr, parsedDay);
+      if (parsedEndTime && parsedEndTime > startTime) {
+        endTime = parsedEndTime;
+      }
+    }
+
     const studioMatch = normalizeStudio(studioRaw);
 
     const conflicts = { studio: false, teacher: false };
@@ -214,7 +227,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
             time: `${format(occ.start, 'h:mm a')} - ${format(occ.end, 'h:mm a')}`,
             type: occ.isPrep ? 'PREPARATION' : (occ.productType || 'CLASS')
           };
-          if (!occ.isPrep && occ.start.getTime() === startTime.getTime()) {
+          // Check if it's an exact duplicate class (not just a prep overlap)
+          if (!occ.isPrep && occ.start.getTime() === startTime.getTime() && occ.end.getTime() === endTime.getTime()) {
             isDuplicate = true;
           }
         }
@@ -228,7 +242,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       id: `preview-${i}`,
       date: dateStr,
       studio: studioMatch,
-      scheduledTime: timeStr,
+      scheduledTime: `${format(startTime, 'h:mm a')} - ${format(endTime, 'h:mm a')}`,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       teacher: teacher || 'TBA',

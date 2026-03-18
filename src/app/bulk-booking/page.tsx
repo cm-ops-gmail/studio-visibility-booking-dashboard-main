@@ -118,14 +118,14 @@ export default function BulkBookingPage() {
                 Paste Data from Google Sheets
               </CardTitle>
               <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
-                Copy rows including headers (Date, Time, Studio, Teacher, etc.) and paste them below.
+                Copy rows including headers (Date, Start Time, End Time, Studio, Teacher, etc.) and paste them below.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <Textarea 
                 value={rawData}
                 onChange={(e) => setRawData(e.target.value)}
-                placeholder="Date	Scheduled Time	Product Type	Course	Subject	Topic	Teacher 1	Studio..."
+                placeholder="Date	Start Time	End Time	Product Type	Course	Subject	Topic	Teacher 1	Studio..."
                 className="min-h-[200px] bg-zinc-950 border-zinc-800 text-xs font-mono"
               />
               <Button 
@@ -164,7 +164,7 @@ export default function BulkBookingPage() {
                   <Table>
                     <TableHeader className="bg-zinc-950 sticky top-0 z-10">
                       <TableRow className="border-zinc-800">
-                        <TableHead className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Date / Time</TableHead>
+                        <TableHead className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Date / Time Window</TableHead>
                         <TableHead className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Studio</TableHead>
                         <TableHead className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Teacher</TableHead>
                         <TableHead className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Subject / Topic</TableHead>
