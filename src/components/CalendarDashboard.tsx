@@ -1,12 +1,13 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchDaySchedule, fetchRangeData } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
-import { format, addDays, subDays, isBefore, parse, isValid, eachDayOfInterval, startOfDay, addMinutes, setHours, setMinutes, isSameDay } from 'date-fns';
+import { format, addDays, subDays, isBefore, parse, isValid, eachDayOfInterval, startOfDay, addMinutes, setHours, setMinutes, isSameDay, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, CheckCircle2, CircleDashed, CalendarDays, Lock, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange, ChevronDown, ChevronUp, Search, MapPin, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, CheckCircle2, CircleDashed, CalendarDays, Lock, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange, ChevronDown, ChevronUp, Search, MapPin, Eye, BarChart3 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -75,7 +76,11 @@ export function CalendarDashboard() {
   const loadRangeData = async (start: Date, end: Date) => {
     setRangeLoading(true);
     try {
-      const data = await fetchRangeData(start, end);
+      // Pass formatted strings to avoid timezone drift
+      const data = await fetchRangeData(
+        format(start, 'yyyy-MM-dd'),
+        format(end, 'yyyy-MM-dd')
+      );
       setRangeBookings(data);
     } catch (e) {
       console.error(e);
@@ -160,15 +165,17 @@ export function CalendarDashboard() {
       filteredRangeBookings.forEach(b => {
         if (!bookedByStudio[b.studio]) bookedByStudio[b.studio] = { count: 0, slots: [] };
         bookedByStudio[b.studio].count++;
+
+        const displayDate = b.date ? format(parse(b.date, 'yyyy-MM-dd', new Date()), 'MMM d, yyyy') : format(new Date(b.startTime), 'MMM d, yyyy');
+
         bookedByStudio[b.studio].slots.push({
           ...b,
-          time: `${format(new Date(b.startTime), 'MMM d')} • ${b.startTimeLabel || format(new Date(b.startTime), 'h:mm a')}`,
+          time: `${displayDate} • ${b.startTimeLabel || format(new Date(b.startTime), 'h:mm a')}`,
           intervalStart: b.startTime,
           studioName: b.studio
         });
       });
 
-      // Calculate availability for each day in range
       const days = eachDayOfInterval({ start: startDate, end: endDate });
       let totalAvailableInRange = 0;
 
@@ -177,7 +184,6 @@ export function CalendarDashboard() {
         const dayLabel = format(day, 'EEEE, MMM d');
         availableByDay[dayStr] = { dateLabel: dayLabel, studios: {} };
 
-        // Generate intervals for this day (10 AM - 10 PM)
         const dayStart = setMinutes(setHours(startOfDay(day), 10), 0);
         const dayEnd = setMinutes(setHours(startOfDay(day), 22), 0);
 
@@ -191,7 +197,7 @@ export function CalendarDashboard() {
             const midPoint = addMinutes(current, 1);
 
             const isOccupied = rangeBookings.some(b => {
-                if (b.studio !== studio) return false;
+                if (b.studio !== studio || b.date !== dayStr) return false;
                 const bStart = new Date(b.startTime);
                 const bEnd = new Date(b.endTime);
                 return midPoint >= bStart && midPoint < bEnd;
@@ -215,7 +221,6 @@ export function CalendarDashboard() {
       return { bookedByStudio, availableByDay, totalAvailable: totalAvailableInRange };
     }
 
-    // Default: Single Day View Summary
     const empty = { bookedByStudio: {}, availableByStudio: {}, totalAvailable: 0 };
     if (!schedule) return empty;
     
@@ -289,7 +294,6 @@ export function CalendarDashboard() {
       setStartDate(null);
       setEndDate(null);
       setIsDetailsOpen(false);
-      // Let the grid render then scroll
       setTimeout(() => {
         const id = `slot-${intervalStart}-${studioName.replace(/\s+/g, '-')}`;
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
@@ -318,6 +322,11 @@ export function CalendarDashboard() {
           <Image src="/logo.png" alt="Content Operations" fill className="object-contain" priority />
         </div>
         <div className="flex items-center gap-4">
+          <Link href="/utilization">
+            <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
+              <BarChart3 className="w-3.5 h-3.5" /> Studio Utilization
+            </Button>
+          </Link>
           <Link href="https://ops-live-class-monitoring-dashboard.vercel.app/" target="_blank">
             <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
               <Monitor className="w-3.5 h-3.5" /> Live Class Monitor
@@ -537,7 +546,7 @@ export function CalendarDashboard() {
                                   Detailed Range Availability
                                 </DialogTitle>
                                 <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.4em] mt-2">
-                                  Analyzing {format(startDate!, 'MMM d')} to {format(endDate!, 'MMM d')} • {summaryData.totalAvailable} Slots Found
+                                  Analyzing {startDate && format(startDate, 'MMM d')} to {endDate && format(endDate, 'MMM d')} • {summaryData.totalAvailable} Slots Found
                                 </p>
                               </DialogHeader>
                               <ScrollArea className="flex-1 p-8 bg-zinc-950">
