@@ -1,3 +1,4 @@
+
 import { google } from 'googleapis';
 
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '13H2FFJ8WzKbis-Ud9SXlea9NNTM6exnOaguML8MVZI4';
@@ -5,7 +6,6 @@ const SHEET_NAME = 'Daywise_Class_OPS';
 const REQUESTS_SHEET_NAME = 'Requests';
 const BULK_SHEET_NAME = 'Bulk Slot Booking';
 
-// Credentials use environment variables with hardcoded fallbacks for local development
 const CREDENTIALS = {
   type: "service_account",
   project_id: "pelagic-range-466218-p1",
@@ -152,7 +152,7 @@ export async function appendBulkBookingData(data: string[][]) {
         range: `${BULK_SHEET_NAME}!A1`,
       });
     } catch (e) {
-      const headers = ["Date", "Scheduled Time", "Product Type", "Course", "Subject", "Topic", "Teacher 1", "Studio", "StartTimeISO", "EndTimeISO"];
+      const headers = ["Date", "Scheduled Time", "End Time", "Product Type", "Course", "Subject", "Topic", "Teacher 1", "Studio", "StartTimeISO", "EndTimeISO"];
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
         range: `${BULK_SHEET_NAME}!A1`,
@@ -163,7 +163,7 @@ export async function appendBulkBookingData(data: string[][]) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${BULK_SHEET_NAME}!A:J`,
+      range: `${BULK_SHEET_NAME}!A:K`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: data,
@@ -215,7 +215,6 @@ export async function updateRequestStatusInSheet(id: string, status: string) {
     const rowIndex = rows.findIndex(row => row[0] === id);
     if (rowIndex === -1) return;
 
-    // Status is in column F (index 5)
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `${REQUESTS_SHEET_NAME}!F${rowIndex + 1}`,

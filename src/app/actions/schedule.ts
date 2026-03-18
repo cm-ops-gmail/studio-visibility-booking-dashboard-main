@@ -100,7 +100,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       return {
         id: `row-${index}`, 
         studio: studioMatch,
-        date: dateVal,
+        date: rowDateStr,
         scheduledTime: timeVal,
         course: String(row.Course || '').trim(),
         subject: String(row.Subject || '').trim(),
@@ -122,18 +122,38 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const startTimeISO = row.StartTimeISO || row.startTimeISO || row.startTime || row.StartTime;
       const endTimeISO = row.EndTimeISO || row.endTimeISO || row.endTime || row.EndTime;
       
-      if (!startTimeISO || !endTimeISO) return null;
-      
-      const startD = new Date(startTimeISO);
-      const endD = new Date(endTimeISO);
-      
-      if (!isValid(startD) || !isValid(endD)) return null;
+      let startD: Date | null = null;
+      let endD: Date | null = null;
 
-      const dateVal = String(row.Date || row.date || '').trim();
-      const parsedDay = parseSheetDate(dateVal);
-      if (!parsedDay) return null;
+      if (startTimeISO && endTimeISO) {
+        const s = new Date(startTimeISO);
+        const e = new Date(endTimeISO);
+        if (isValid(s) && isValid(e)) {
+          startD = s;
+          endD = e;
+        }
+      }
 
-      const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
+      // Fallback: parse from text columns if ISO missing
+      if (!startD) {
+        const dateVal = String(row.Date || row.date || '').trim();
+        const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
+        const parsedDay = parseSheetDate(dateVal);
+        if (parsedDay) {
+          startD = parseTime(timeVal, parsedDay);
+          if (startD) {
+            const endVal = String(row['End Time'] || row.endTime || '').trim();
+            endD = parseTime(endVal, parsedDay);
+            if (!endD || endD <= startD) {
+              endD = addHours(startD, 2);
+            }
+          }
+        }
+      }
+
+      if (!startD || !endD) return null;
+
+      const rowDateStr = format(startD, 'yyyy-MM-dd');
       if (rowDateStr !== targetDateStr) return null;
 
       const studioRaw = row.Studio || row.studio || '';
@@ -143,8 +163,8 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       return {
         id: row.id,
         studio: studioMatch,
-        date: dateVal,
-        scheduledTime: row['Scheduled Time'] || row.scheduledTime || `${format(startD, 'h:mm a')} - ${format(endD, 'h:mm a')}`,
+        date: rowDateStr,
+        scheduledTime: row['Scheduled Time'] || `${format(startD, 'h:mm a')} - ${format(endD, 'h:mm a')}`,
         course: row.Course || row.course || '',
         subject: row.Subject || row.subject || '',
         topic: row.Topic || row.topic || '',
@@ -275,6 +295,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
           studio,
           date: targetDateStr,
           scheduledTime: format(intervalStart, 'h:mm a'),
+          startTimeLabel: format(intervalStart, 'h:mm a'), // Critical fix for SlotCard display
           course: '', subject: '', topic: '', teacher: '', productType: '',
           startTime: interval.start, endTime: interval.end,
           isBooked: false,

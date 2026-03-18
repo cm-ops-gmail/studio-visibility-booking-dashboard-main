@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSheetData, getBulkBookingData, getRequestsData, appendBulkBookingData } from '@/app/lib/google-sheets';
@@ -143,11 +144,16 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 
   // Parse Existing Bulk Bookings
   bulkData.forEach(row => {
-    if (!row.StartTimeISO || !row.EndTimeISO) return;
-    const start = new Date(row.StartTimeISO);
-    const end = new Date(row.EndTimeISO);
-    const studioName = normalizeStudio(row.Studio);
-    const subject = row.Subject || 'Bulk Booked Class';
+    const startTimeISO = row.StartTimeISO || row.startTimeISO || row.startTime || row.StartTime;
+    const endTimeISO = row.EndTimeISO || row.endTimeISO || row.endTime || row.EndTime;
+    
+    if (!startTimeISO || !endTimeISO) return;
+    const start = new Date(startTimeISO);
+    const end = new Date(endTimeISO);
+    if (!isValid(start) || !isValid(end)) return;
+
+    const studioName = normalizeStudio(row.Studio || row.studio || '');
+    const subject = row.Subject || row.subject || 'Bulk Booked Class';
 
     existingOccupancy.push({
       studio: studioName,
@@ -155,11 +161,11 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       start,
       end,
       isPrep: false,
-      productType: row['Product Type'] || '',
+      productType: row['Product Type'] || row.productType || '',
       subject
     });
 
-    if (!(row['Product Type'] || '').toLowerCase().includes('studio booking')) {
+    if (!(row['Product Type'] || row.productType || '').toLowerCase().includes('studio booking')) {
       existingOccupancy.push({
         studio: studioName,
         teacher: 'Ops Team',
@@ -176,6 +182,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
   requestsData.forEach(r => {
     if ((r.Status !== 'approved' && r.Status !== 'pending') || !r.StartTime) return;
     const start = new Date(r.StartTime);
+    if (!isValid(start)) return;
     let durationHrs = r.Duration === '30 mins' ? 0.5 : (r.Duration === '1 hr 30 mins' ? 1.5 : (r.Duration === '2 hrs' ? 2 : 1));
     const end = addHours(start, durationHrs);
     const studioName = normalizeStudio(r.Studio);
@@ -221,8 +228,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     existingOccupancy.forEach(occ => {
       if (occ.studio !== studioMatch && occ.teacher !== teacher) return;
 
-      // areIntervalsOverlapping uses {inclusive: false} by default in date-fns v3
-      // This means touching at the end/start is NOT an overlap.
       const overlap = areIntervalsOverlapping(
         { start: startTime, end: endTime },
         { start: occ.start, end: occ.end }
@@ -272,19 +277,22 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 }
 
 export async function submitBulkBookings(entries: BulkPreviewEntry[]) {
+  // Ordered mapping based on the User Header request:
+  // Date, Scheduled Time, End Time, Product Type, Course, Subject, Topic, Teacher 1, Studio
   const toSubmit = entries
     .filter(e => !e.isDuplicate && !e.conflicts.studio)
     .map(e => [
-      e.date,
-      e.scheduledTime,
-      e.productType,
-      e.course,
-      e.subject,
-      e.topic,
-      e.teacher,
-      e.studio,
-      e.startTime,
-      e.endTime
+      e.date,               // Date
+      e.scheduledTime,      // Scheduled Time
+      e.endTimeLabel || '', // End Time
+      e.productType,        // Product Type
+      e.course,             // Course
+      e.subject,            // Subject
+      e.topic,              // Topic
+      e.teacher,            // Teacher 1
+      e.studio,             // Studio
+      e.startTime,          // StartTimeISO (Internal)
+      e.endTime             // EndTimeISO (Internal)
     ]);
 
   if (toSubmit.length > 0) {
