@@ -128,7 +128,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
   const topicIdx = findIdx(['topic']);
   const productTypeIdx = findIdx(['product type']);
 
-  // Smart Inference for End Time: If no explicit header, check if the column after Scheduled Time is a time
   if (endTimeIdx === -1 && timeIdx !== -1 && rows.length > 0) {
     const possibleEndTimeVal = rows[0][timeIdx + 1];
     if (possibleEndTimeVal && /^\d{1,2}:\d{2}/.test(possibleEndTimeVal)) {
@@ -158,108 +157,86 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     subject: string;
   }> = [];
 
-  // Parse Main Sheet existing bookings
-  sheetData.forEach(row => {
-    const dateVal = String(row.Date || '').trim();
-    const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
-    const endTimeVal = String(row['End Time'] || row['Scheduled End Time'] || '').trim();
-    const studioRaw = String(row.Studio || row['Studio Name'] || '').trim();
-    const subject = row.Subject || 'Main Schedule Class';
-    
-    const parsedDay = parseSheetDate(dateVal);
-    if (!parsedDay) return;
+  const addOccupancy = (row: any, isBulk: boolean = false) => {
+    let start: Date | null = null;
+    let end: Date | null = null;
+    let studioRaw = '';
+    let teacherRaw = '';
+    let subject = '';
+    let productType = '';
 
-    const startTime = parseTime(timeVal, parsedDay);
-    if (!startTime) return;
-    
-    let endTime = addHours(startTime, CLASS_DURATION_HOURS);
-    if (endTimeVal) {
-      const parsedEnd = parseTime(endTimeVal, parsedDay);
-      if (parsedEnd && parsedEnd > startTime) endTime = parsedEnd;
+    if (isBulk) {
+        const sISO = row.StartTimeISO || row.startTimeISO || row.startTime || row.StartTime;
+        const eISO = row.EndTimeISO || row.endTimeISO || row.endTime || row.EndTime;
+        if (sISO && eISO) {
+            start = new Date(sISO);
+            end = new Date(eISO);
+        }
+        studioRaw = row.Studio || row.studio || '';
+        teacherRaw = row['Teacher 1'] || row.teacher || '';
+        subject = row.Subject || row.subject || 'Bulk Class';
+        productType = row['Product Type'] || row.productType || '';
+    } else {
+        const dateVal = String(row.Date || '').trim();
+        const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
+        const endTimeVal = String(row['End Time'] || row['Scheduled End Time'] || '').trim();
+        const parsedDay = parseSheetDate(dateVal);
+        if (parsedDay) {
+            start = parseTime(timeVal, parsedDay);
+            if (start) {
+                end = parseTime(endTimeVal, parsedDay) || addHours(start, 2);
+            }
+        }
+        studioRaw = row.Studio || row['Studio Name'] || '';
+        teacherRaw = row['Teacher 1'] || row.Teacher || '';
+        subject = row.Subject || 'Main Class';
+        productType = row['Product Type'] || '';
     }
 
-    const studioName = normalizeStudio(studioRaw);
+    if (start && end && isValid(start) && isValid(end)) {
+        const studioName = normalizeStudio(studioRaw);
+        existingOccupancy.push({
+            studio: studioName,
+            teacher: teacherRaw.trim(),
+            start, end,
+            isPrep: false,
+            productType,
+            subject
+        });
 
-    existingOccupancy.push({
-      studio: studioName,
-      teacher: (row['Teacher 1'] || row.Teacher || '').trim(),
-      start: startTime,
-      end: endTime,
-      isPrep: false,
-      productType: row['Product Type'] || '',
-      subject
-    });
-
-    if (!(row['Product Type'] || '').toLowerCase().includes('studio booking')) {
-      existingOccupancy.push({
-        studio: studioName,
-        teacher: 'Ops Team',
-        start: subMinutes(startTime, PREP_DURATION_MINUTES),
-        end: startTime,
-        isPrep: true,
-        productType: 'PREPARATION',
-        subject: `Prep for ${subject}`
-      });
+        if (!productType.toLowerCase().includes('studio booking')) {
+            existingOccupancy.push({
+                studio: studioName,
+                teacher: 'Ops Team',
+                start: subMinutes(start, PREP_DURATION_MINUTES),
+                end: start,
+                isPrep: true,
+                productType: 'PREPARATION',
+                subject: `Prep for ${subject}`
+            });
+        }
     }
-  });
+  };
 
-  // Parse Existing Bulk Bookings
-  bulkData.forEach(row => {
-    const startTimeISO = row.StartTimeISO || row.startTimeISO || row.startTime || row.StartTime;
-    const endTimeISO = row.EndTimeISO || row.endTimeISO || row.endTime || row.EndTime;
-    
-    if (!startTimeISO || !endTimeISO) return;
-    const start = new Date(startTimeISO);
-    const end = new Date(endTimeISO);
-    if (!isValid(start) || !isValid(end)) return;
-
-    const studioName = normalizeStudio(row.Studio || row.studio || '');
-    const subject = row.Subject || row.subject || 'Bulk Booked Class';
-
-    existingOccupancy.push({
-      studio: studioName,
-      teacher: (row['Teacher 1'] || row.teacher || '').trim(),
-      start,
-      end,
-      isPrep: false,
-      productType: row['Product Type'] || row.productType || '',
-      subject
-    });
-
-    if (!(row['Product Type'] || row.productType || '').toLowerCase().includes('studio booking')) {
-      existingOccupancy.push({
-        studio: studioName,
-        teacher: 'Ops Team',
-        start: subMinutes(start, PREP_DURATION_MINUTES),
-        end: start,
-        isPrep: true,
-        productType: 'PREPARATION',
-        subject: `Prep for ${subject}`
-      });
-    }
-  });
-
-  // Parse Pending/Approved Requests
+  sheetData.forEach(r => addOccupancy(r, false));
+  bulkData.forEach(r => addOccupancy(r, true));
+  
   requestsData.forEach(r => {
     if ((r.Status !== 'approved' && r.Status !== 'pending') || !r.StartTime) return;
     const start = new Date(r.StartTime);
     if (!isValid(start)) return;
     let durationHrs = r.Duration === '30 mins' ? 0.5 : (r.Duration === '1 hr 30 mins' ? 1.5 : (r.Duration === '2 hrs' ? 2 : 1));
     const end = addHours(start, durationHrs);
-    const studioName = normalizeStudio(r.Studio);
-
     existingOccupancy.push({
-      studio: studioName,
+      studio: normalizeStudio(r.Studio),
       teacher: 'User Request',
-      start,
-      end,
+      start, end,
       isPrep: false,
       productType: 'STUDIO BOOKING',
       subject: r.Status === 'approved' ? 'Approved Request' : 'Pending Request'
     });
   });
 
-  // Process Rows from Textarea
   rows.forEach((row, i) => {
     const dateStr = row[dateIdx];
     const startTimeStr = row[timeIdx];
@@ -274,23 +251,21 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     const startTime = parseTime(startTimeStr, parsedDay);
     if (!startTime) return;
 
-    let endTime = addHours(startTime, CLASS_DURATION_HOURS);
-    if (endTimeStr) {
-      const parsedEndTime = parseTime(endTimeStr, parsedDay);
-      if (parsedEndTime && parsedEndTime > startTime) {
-        endTime = parsedEndTime;
-      }
-    }
+    let endTime = endTimeStr ? parseTime(endTimeStr, parsedDay) : null;
+    if (!endTime || endTime <= startTime) endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
     const studioMatch = normalizeStudio(studioRaw);
     const teacher = teacherIdx !== -1 ? (row[teacherIdx] || 'TBA') : 'TBA';
+    const teacherNorm = teacher.trim().toLowerCase();
 
     const conflicts = { studio: false, teacher: false };
     let isDuplicate = false;
     let conflictingSlot: any = null;
 
     existingOccupancy.forEach(occ => {
-      if (occ.studio !== studioMatch && occ.teacher !== teacher) return;
+      // Logic: Only check rows that match either the studio (for occupancy) or the teacher (for cross-studio double booking)
+      const occTeacherNorm = (occ.teacher || '').trim().toLowerCase();
+      if (occ.studio !== studioMatch && occTeacherNorm !== teacherNorm) return;
 
       const overlap = areIntervalsOverlapping(
         { start: startTime, end: endTime },
@@ -310,7 +285,9 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
             isDuplicate = true;
           }
         }
-        if (!occ.isPrep && occ.teacher && occ.teacher === teacher && teacher !== 'TBA' && teacher !== '') {
+        
+        // Check for teacher double booking (ignore 'TBA' or empty names)
+        if (!occ.isPrep && teacherNorm !== 'tba' && teacherNorm !== '' && occTeacherNorm === teacherNorm) {
           conflicts.teacher = true;
         }
       }

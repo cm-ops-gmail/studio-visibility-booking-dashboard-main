@@ -161,8 +161,8 @@ export default function BulkBookingPage() {
                 )}
                 {teacherConflicts > 0 && (
                   <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest">
-                    <Info className="w-4 h-4" />
-                    {teacherConflicts} Teacher Conflicts
+                    <AlertTriangle className="w-4 h-4" />
+                    {teacherConflicts} Teacher Schedule Conflict(s)
                   </Badge>
                 )}
                 <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest ml-auto">
@@ -214,20 +214,26 @@ export default function BulkBookingPage() {
                             <p className="text-[9px] font-bold text-zinc-500 truncate">{entry.topic}</p>
                           </TableCell>
                           <TableCell className="text-center">
-                            {entry.isDuplicate || entry.conflicts.studio ? (
+                            {entry.isDuplicate || entry.conflicts.studio || entry.conflicts.teacher ? (
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Badge 
                                     variant="outline" 
-                                    className="bg-red-500/10 text-red-500 text-[8px] uppercase cursor-pointer hover:bg-red-500/20 transition-all gap-1.5"
+                                    className={cn(
+                                      "text-[8px] uppercase cursor-pointer hover:opacity-80 transition-all gap-1.5",
+                                      (entry.isDuplicate || entry.conflicts.studio) ? "bg-red-500/10 text-red-500" : "bg-yellow-500/10 text-yellow-500"
+                                    )}
                                   >
-                                    This slot is Already occupied
+                                    {entry.isDuplicate || entry.conflicts.studio ? "This slot is Already occupied" : "Teacher has another class"}
                                     <HelpCircle className="w-2.5 h-2.5" />
                                   </Badge>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80 bg-zinc-950 border-zinc-800 p-4 shadow-2xl z-[1000]">
                                   <div className="space-y-3">
-                                    <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                                    <h4 className={cn(
+                                      "text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
+                                      (entry.isDuplicate || entry.conflicts.studio) ? "text-red-500" : "text-yellow-500"
+                                    )}>
                                       <AlertCircle className="w-3 h-3" />
                                       Conflict Details
                                     </h4>
@@ -235,20 +241,20 @@ export default function BulkBookingPage() {
                                       <div className="space-y-2.5 bg-zinc-900 p-3 rounded-xl border border-white/5">
                                         <div className="space-y-1">
                                           <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                                            <Layers className="w-3 h-3" /> Subject
+                                            <Layers className="w-3 h-3" /> Existing Occupancy
                                           </p>
                                           <p className="text-xs font-black uppercase">{entry.conflictingSlot.subject}</p>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                           <div className="space-y-1">
                                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                                              <User className="w-3 h-3" /> Teacher
+                                              <User className="w-3 h-3" /> Booked Teacher
                                             </p>
                                             <p className="text-[10px] font-black uppercase">{entry.conflictingSlot.teacher}</p>
                                           </div>
                                           <div className="space-y-1">
                                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                                              <Clock className="w-3 h-3" /> Time
+                                              <Clock className="w-3 h-3" /> Time Range
                                             </p>
                                             <p className="text-[10px] font-black uppercase">{entry.conflictingSlot.time}</p>
                                           </div>
@@ -257,9 +263,15 @@ export default function BulkBookingPage() {
                                           TYPE: {entry.conflictingSlot.type}
                                         </Badge>
                                       </div>
+                                    ) : entry.conflicts.teacher ? (
+                                      <div className="bg-yellow-500/5 p-3 rounded-xl border border-yellow-500/20">
+                                        <p className="text-[9px] text-yellow-500 font-black uppercase tracking-widest">
+                                          Teacher {entry.teacher} is already assigned to another class in a different studio during this time.
+                                        </p>
+                                      </div>
                                     ) : (
                                       <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
-                                        Conflict with existing schedule or preparation window.
+                                        Conflict with existing schedule or mandatory preparation window.
                                       </p>
                                     )}
                                   </div>
