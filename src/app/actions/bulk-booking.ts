@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSheetData, getBulkBookingData, getRequestsData, appendBulkBookingData } from '@/app/lib/google-sheets';
@@ -283,7 +282,7 @@ export async function submitBulkBookings(entries: BulkPreviewEntry[]) {
     .filter(e => !e.isDuplicate && !e.conflicts.studio)
     .map(e => [
       e.date,               // Date
-      e.scheduledTime,      // Scheduled Time
+      e.startTimeLabel,     // Scheduled Time (Only Start Time as requested)
       e.endTimeLabel || '', // End Time
       e.productType,        // Product Type
       e.course,             // Course

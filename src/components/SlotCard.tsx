@@ -201,16 +201,21 @@ export function SlotCard({ slot }: SlotCardProps) {
       
       <div className="text-center space-y-3 relative z-10 w-full px-2 flex flex-col items-center justify-center h-full">
         <div className={cn(
-          "text-[9px] font-black px-3 uppercase tracking-[0.3em] flex items-center gap-2 justify-center transition-colors",
+          "text-[9px] font-black px-3 uppercase tracking-[0.3em] flex flex-col items-center gap-1 transition-colors",
           isExpired 
             ? "text-sky-400 group-hover:text-sky-400/80" 
             : "text-white group-hover:text-emerald-500"
         )}>
-            <div className={cn(
-              "w-1.5 h-1.5 rounded-full animate-pulse transition-colors",
-              isExpired ? "bg-sky-500" : "bg-zinc-800 group-hover:bg-emerald-500/60"
-            )} />
-            {isExpired ? "TIME EXPIRED" : "AVAILABLE"}
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full animate-pulse transition-colors",
+                isExpired ? "bg-sky-500" : "bg-zinc-800 group-hover:bg-emerald-500/60"
+              )} />
+              {isExpired ? "TIME EXPIRED" : "AVAILABLE"}
+            </div>
+            {slot.startTimeLabel && (
+              <span className="text-[8px] opacity-60 font-black tracking-widest">{slot.startTimeLabel}</span>
+            )}
         </div>
         
         {!isExpired ? (
