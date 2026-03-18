@@ -33,7 +33,8 @@ import {
   Clock,
   User,
   Layers,
-  MapPin
+  MapPin,
+  Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -225,55 +226,71 @@ export default function BulkBookingPage() {
                                       (entry.isDuplicate || entry.conflicts.studio) ? "bg-red-500/10 text-red-500" : "bg-yellow-500/10 text-yellow-500"
                                     )}
                                   >
-                                    {entry.isDuplicate || entry.conflicts.studio ? "This slot is Already occupied" : "Teacher has another class"}
+                                    {entry.isDuplicate || entry.conflicts.studio ? "Already occupied" : "Teacher overlap"}
                                     <HelpCircle className="w-2.5 h-2.5" />
                                   </Badge>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80 bg-zinc-950 border-zinc-800 p-4 shadow-2xl z-[1000]">
-                                  <div className="space-y-3">
+                                  <div className="space-y-4">
                                     <h4 className={cn(
                                       "text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
                                       (entry.isDuplicate || entry.conflicts.studio) ? "text-red-500" : "text-yellow-500"
                                     )}>
                                       <AlertCircle className="w-3 h-3" />
-                                      {entry.conflicts.teacher && !entry.conflicts.studio ? "Teacher Conflict" : "Occupancy Conflict"}
+                                      {entry.conflicts.teacher && !entry.conflicts.studio ? "Teacher Schedule Conflict" : "Occupancy Blocked"}
                                     </h4>
+                                    
                                     {entry.conflictingSlot ? (
-                                      <div className="space-y-2.5 bg-zinc-900 p-3 rounded-xl border border-white/5">
-                                        <div className="space-y-1">
-                                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                                            <Layers className="w-3 h-3" /> Existing Occupancy
-                                          </p>
-                                          <p className="text-xs font-black uppercase">{entry.conflictingSlot.subject}</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-3 bg-zinc-900 p-3 rounded-xl border border-white/5">
+                                        <div className="grid grid-cols-1 gap-3">
                                           <div className="space-y-1">
                                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                                              <User className="w-3 h-3" /> Booked Teacher
+                                              <Calendar className="w-3 h-3" /> Conflicting Date
+                                            </p>
+                                            <p className="text-[10px] font-black uppercase text-white">{entry.conflictingSlot.date || entry.date}</p>
+                                          </div>
+                                          
+                                          <div className="space-y-1">
+                                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                              <Layers className="w-3 h-3" /> Existing Class
+                                            </p>
+                                            <p className="text-xs font-black uppercase text-white">{entry.conflictingSlot.subject}</p>
+                                            {entry.conflictingSlot.topic && (
+                                              <p className="text-[9px] font-bold text-zinc-400 italic">"{entry.conflictingSlot.topic}"</p>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 border-t border-zinc-800 pt-3">
+                                          <div className="space-y-1">
+                                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                              <User className="w-3 h-3" /> Teacher
                                             </p>
                                             <p className="text-[10px] font-black uppercase">{entry.conflictingSlot.teacher}</p>
                                           </div>
                                           <div className="space-y-1">
                                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                                              <Clock className="w-3 h-3" /> Time Range
+                                              <Clock className="w-3 h-3" /> Time Window
                                             </p>
                                             <p className="text-[10px] font-black uppercase">{entry.conflictingSlot.time}</p>
                                           </div>
                                         </div>
-                                        <div className="space-y-1 pt-1">
+
+                                        <div className="space-y-1 border-t border-zinc-800 pt-3">
                                             <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                                              <MapPin className="w-3 h-3" /> Studio Location
+                                              <MapPin className="w-3 h-3" /> Location
                                             </p>
                                             <p className="text-[10px] font-black uppercase text-orange-500">{entry.conflictingSlot.studio || entry.studio}</p>
                                         </div>
-                                        <Badge variant="outline" className="w-full justify-center bg-zinc-950 text-[7px] font-black uppercase tracking-widest">
-                                          TYPE: {entry.conflictingSlot.type}
+
+                                        <Badge variant="outline" className="w-full justify-center bg-zinc-950 text-[7px] font-black uppercase tracking-widest py-1 border-zinc-800">
+                                          SYSTEM TYPE: {entry.conflictingSlot.type}
                                         </Badge>
                                       </div>
                                     ) : (
                                       <div className="bg-zinc-900 p-3 rounded-xl border border-white/5">
-                                        <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
-                                          Conflict with existing schedule or mandatory preparation window.
+                                        <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest text-center">
+                                          Occupied by existing schedule or preparation window.
                                         </p>
                                       </div>
                                     )}
