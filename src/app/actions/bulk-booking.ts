@@ -2,9 +2,10 @@
 
 import { getSheetData, getBulkBookingData, getRequestsData, appendBulkBookingData } from '@/app/lib/google-sheets';
 import { BulkPreviewEntry, ClassBooking } from '@/app/lib/types';
-import { parse, format, addHours, isValid, areIntervalsOverlapping } from 'date-fns';
+import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes } from 'date-fns';
 
 const CLASS_DURATION_HOURS = 2;
+const PREP_DURATION_MINUTES = 30;
 
 const ALLOWED_STUDIOS = [
   'Studio 1 - HQ1',
@@ -34,6 +35,7 @@ function normalizeStudio(name: string): string {
 
 function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
+  // Handle formats like "Monday, March 16, 2026"
   const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
     const monthDay = parts[1];
@@ -63,9 +65,9 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
   const headers = lines[0].split('\t').map(h => h.trim().replace(/"/g, ''));
   const rows = lines.slice(1).map(l => l.split('\t').map(c => c.trim().replace(/"/g, '')));
 
-  // Mapping keys
+  // Improved mapping keys
   const findIndex = (candidates: string[]) => 
-    headers.findIndex(h => candidates.some(c => h.toLowerCase().includes(c.toLowerCase())));
+    headers.findIndex(h => candidates.some(c => h.toLowerCase() === c.toLowerCase() || h.toLowerCase().includes(c.toLowerCase())));
 
   const dateIdx = findIndex(['Date']);
   const timeIdx = findIndex(['Scheduled Time', 'Start Time']);
@@ -86,30 +88,63 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
   ]);
 
   // Combine all "occupied" intervals
-  const existingBookings: Array<{ studio: string; teacher: string; start: Date; end: Date; dateStr: string }> = [];
+  const existingOccupancy: Array<{ 
+    studio: string; 
+    teacher: string; 
+    start: Date; 
+    end: Date; 
+    isPrep: boolean;
+    productType: string;
+  }> = [];
 
-  const processExisting = (data: any[], type: 'sheet' | 'bulk' | 'request') => {
+  const processExisting = (data: any[]) => {
     data.forEach(row => {
       let startStr = row.StartTimeISO || row.startTime;
       let endStr = row.EndTimeISO || row.endTime;
       let studio = row.Studio || row.studio;
       let teacher = row['Teacher 1'] || row.teacher;
-      let dateVal = row.Date || row.date;
+      let pType = row['Product Type'] || row.productType || '';
 
       if (!startStr || !endStr) return;
-      existingBookings.push({
-        studio: normalizeStudio(studio),
+      
+      const start = new Date(startStr);
+      const end = new Date(endStr);
+      const normalizedStudioName = normalizeStudio(studio);
+
+      // The Class itself
+      existingOccupancy.push({
+        studio: normalizedStudioName,
         teacher: (teacher || '').trim(),
-        start: new Date(startStr),
-        end: new Date(endStr),
-        dateStr: dateVal
+        start,
+        end,
+        isPrep: false,
+        productType: pType
       });
+
+      // The Preparation slot (30 mins before)
+      // Prep slots only exist for non-studio-booking classes
+      if (!pType.toLowerCase().includes('studio booking')) {
+        existingOccupancy.push({
+          studio: normalizedStudioName,
+          teacher: 'Ops Team',
+          start: subMinutes(start, PREP_DURATION_MINUTES),
+          end: start,
+          isPrep: true,
+          productType: 'PREPARATION'
+        });
+      }
     });
   };
 
-  processExisting(sheetData, 'sheet');
-  processExisting(bulkData, 'bulk');
-  processExisting(requestsData.filter(r => r.Status === 'approved' || r.Status === 'pending'), 'request');
+  processExisting(sheetData);
+  processExisting(bulkData);
+  processExisting(requestsData.filter(r => r.Status === 'approved' || r.Status === 'pending').map(r => ({
+    startTime: r.StartTime,
+    // Note: Request duration parsing logic
+    endTime: new Date(new Date(r.StartTime).getTime() + (r.Duration === '30 mins' ? 30 : r.Duration === '2 hrs' ? 120 : 60) * 60000).toISOString(),
+    Studio: r.Studio,
+    'Product Type': 'Studio Booking'
+  })));
 
   rows.forEach((row, i) => {
     const dateStr = row[dateIdx];
@@ -126,9 +161,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     const endTime = addHours(startTime, CLASS_DURATION_HOURS);
     const studioMatch = normalizeStudio(studioRaw);
 
-    const startTimeISO = startTime.toISOString();
-    const endTimeISO = endTime.toISOString();
-
     const conflicts = {
       studio: false,
       teacher: false
@@ -136,19 +168,21 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 
     let isDuplicate = false;
 
-    existingBookings.forEach(eb => {
+    existingOccupancy.forEach(occ => {
       const overlap = areIntervalsOverlapping(
         { start: startTime, end: endTime },
-        { start: eb.start, end: eb.end }
+        { start: occ.start, end: occ.end }
       );
 
       if (overlap) {
-        if (eb.studio === studioMatch) {
+        if (occ.studio === studioMatch) {
           conflicts.studio = true;
-          // If it's the exact same interval and studio, it's a duplicate
-          if (eb.start.getTime() === startTime.getTime()) isDuplicate = true;
+          // Exact same interval and studio = Duplicate
+          if (!occ.isPrep && occ.start.getTime() === startTime.getTime()) {
+            isDuplicate = true;
+          }
         }
-        if (eb.teacher && eb.teacher === teacher && eb.teacher !== 'TBA') {
+        if (!occ.isPrep && occ.teacher && occ.teacher === teacher && teacher !== 'TBA') {
           conflicts.teacher = true;
         }
       }
@@ -159,8 +193,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       date: dateStr,
       studio: studioMatch,
       scheduledTime: timeStr,
-      startTime: startTimeISO,
-      endTime: endTimeISO,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
       teacher: teacher || 'TBA',
       course: row[courseIdx] || '',
       subject: row[subjectIdx] || '',
@@ -178,18 +212,21 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 }
 
 export async function submitBulkBookings(entries: BulkPreviewEntry[]) {
-  const toSubmit = entries.filter(e => !e.isDuplicate).map(e => [
-    e.date,
-    e.scheduledTime,
-    e.productType,
-    e.course,
-    e.subject,
-    e.topic,
-    e.teacher,
-    e.studio,
-    e.startTime,
-    e.endTime
-  ]);
+  // Only submit entries that are NOT duplicates and have no studio conflicts
+  const toSubmit = entries
+    .filter(e => !e.isDuplicate && !e.conflicts.studio)
+    .map(e => [
+      e.date,
+      e.scheduledTime,
+      e.productType,
+      e.course,
+      e.subject,
+      e.topic,
+      e.teacher,
+      e.studio,
+      e.startTime,
+      e.endTime
+    ]);
 
   if (toSubmit.length > 0) {
     await appendBulkBookingData(toSubmit);

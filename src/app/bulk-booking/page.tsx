@@ -22,7 +22,8 @@ import {
   ClipboardPaste, 
   Loader2, 
   AlertTriangle,
-  Info
+  Info,
+  XCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -47,9 +48,15 @@ export default function BulkBookingPage() {
           title: "Parsing Failed", 
           description: "Check if the data is tab-separated and contains required headers." 
         });
+      } else {
+        toast({
+          title: "Preview Generated",
+          description: `Processed ${data.length} rows.`
+        });
       }
     } catch (e) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to process data." });
+      console.error(e);
+      toast({ variant: "destructive", title: "Error", description: "Failed to process data. Check console for details." });
     } finally {
       setLoading(false);
     }
@@ -72,9 +79,10 @@ export default function BulkBookingPage() {
     }
   };
 
-  const studioConflicts = preview.filter(p => p.conflicts.studio).length;
+  const studioConflicts = preview.filter(p => p.conflicts.studio && !p.isDuplicate).length;
   const teacherConflicts = preview.filter(p => p.conflicts.teacher).length;
   const duplicates = preview.filter(p => p.isDuplicate).length;
+  const readyCount = preview.filter(p => !p.isDuplicate && !p.conflicts.studio).length;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white font-body p-6 md:p-12">
@@ -127,7 +135,7 @@ export default function BulkBookingPage() {
                 {studioConflicts > 0 && (
                   <Badge variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest">
                     <AlertTriangle className="w-4 h-4" />
-                    {studioConflicts} Studio Conflicts
+                    {studioConflicts} Studio/Prep Conflicts
                   </Badge>
                 )}
                 {teacherConflicts > 0 && (
@@ -139,12 +147,12 @@ export default function BulkBookingPage() {
                 {duplicates > 0 && (
                   <Badge variant="outline" className="bg-zinc-800 text-zinc-400 border-zinc-700 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest">
                     <AlertCircle className="w-4 h-4" />
-                    {duplicates} Duplicates (Will be skipped)
+                    {duplicates} Duplicates
                   </Badge>
                 )}
                 <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest ml-auto">
                   <CheckCircle2 className="w-4 h-4" />
-                  {preview.length - duplicates} Ready to Book
+                  {readyCount} Ready to Book
                 </Badge>
               </div>
 
@@ -164,7 +172,7 @@ export default function BulkBookingPage() {
                       {preview.map((entry, idx) => (
                         <TableRow key={idx} className={cn(
                           "border-zinc-800 hover:bg-zinc-800/40 transition-colors",
-                          entry.isDuplicate && "opacity-40 grayscale"
+                          (entry.isDuplicate || entry.conflicts.studio) && "bg-zinc-900/40"
                         )}>
                           <TableCell className="py-4">
                             <p className="text-[10px] font-black uppercase text-zinc-300">{entry.date}</p>
@@ -192,7 +200,9 @@ export default function BulkBookingPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             {entry.isDuplicate ? (
-                              <Badge variant="outline" className="bg-zinc-800 text-zinc-500 text-[8px] uppercase">SKIPPING</Badge>
+                              <Badge variant="outline" className="bg-zinc-800 text-zinc-500 text-[8px] uppercase">DUPLICATE</Badge>
+                            ) : entry.conflicts.studio ? (
+                              <Badge variant="outline" className="bg-red-500/10 text-red-500 text-[8px] uppercase">CONFLICT</Badge>
                             ) : (
                               <Badge className="bg-emerald-500/20 text-emerald-500 text-[8px] uppercase">READY</Badge>
                             )}
@@ -204,14 +214,20 @@ export default function BulkBookingPage() {
                 </div>
               </Card>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-4 gap-4">
+                 {readyCount === 0 && preview.length > 0 && (
+                   <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                     <XCircle className="w-4 h-4" />
+                     All entries have conflicts or are duplicates.
+                   </p>
+                 )}
                 <Button 
                   onClick={handleSubmit} 
-                  disabled={submitting || preview.length === duplicates}
+                  disabled={submitting || readyCount === 0}
                   className="h-14 px-12 bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-orange-900/20 gap-3"
                 >
                   {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                  CONFIRM BULK BOOKING
+                  CONFIRM BULK BOOKING ({readyCount})
                 </Button>
               </div>
             </div>
