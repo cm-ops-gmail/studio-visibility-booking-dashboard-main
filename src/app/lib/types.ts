@@ -59,5 +59,11 @@ export interface BulkPreviewEntry extends Omit<ClassBooking, 'isBooked'> {
     teacher: string;
     time: string;
     type: string;
+    studio?: string;
   };
+}
+
+export interface RangeSummary {
+  booked: ClassBooking[];
+  availableCount: number;
 }

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { fetchDaySchedule } from '@/app/actions/schedule';
+import { fetchDaySchedule, fetchRangeData } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
-import { format, addDays, subDays, isBefore, parse, isValid } from 'date-fns';
+import { format, addDays, subDays, isBefore, parse, isValid, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info, Monitor, Calendar as CalendarIcon, LayoutList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -23,6 +23,12 @@ export function CalendarDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [formattedDateLabel, setFormattedDateLabel] = useState('LOADING...');
   const [currentTime, setCurrentTime] = useState<string>('');
+
+  // Range Filters
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [rangeBookings, setRangeBookings] = useState<ClassBooking[]>([]);
+  const [rangeLoading, setRangeLoading] = useState(false);
 
   // Filter States
   const [filterStudio, setFilterStudio] = useState<string>('all');
@@ -64,6 +70,18 @@ export function CalendarDashboard() {
     }
   };
 
+  const loadRangeData = async (start: Date, end: Date) => {
+    setRangeLoading(true);
+    try {
+      const data = await fetchRangeData(start, end);
+      setRangeBookings(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRangeLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isMounted && date) {
       loadData(date);
@@ -71,15 +89,26 @@ export function CalendarDashboard() {
     }
   }, [date, isMounted]);
 
+  useEffect(() => {
+    if (isMounted && startDate && endDate) {
+      loadRangeData(startDate, endDate);
+    } else {
+      setRangeBookings([]);
+    }
+  }, [startDate, endDate, isMounted]);
+
   const nextDay = () => date && setDate(addDays(date, 1));
   const prevDay = () => date && setDate(subDays(date, 1));
 
   const clearFilters = () => {
     setFilterStudio('all');
     setFilterAvailability('all');
+    setStartDate(null);
+    setEndDate(null);
   };
 
-  const isFiltered = filterStudio !== 'all' || filterAvailability !== 'all';
+  const isRangeMode = startDate && endDate;
+  const isFiltered = filterStudio !== 'all' || filterAvailability !== 'all' || isRangeMode;
 
   const filteredStudios = useMemo(() => {
     if (!schedule) return [];
@@ -106,12 +135,43 @@ export function CalendarDashboard() {
   }, [schedule, filteredStudios, filterAvailability]);
 
   const summaryData = useMemo(() => {
-    const empty = { bookedByStudio: {}, availableByStudio: {} };
+    const now = new Date();
+    
+    // If Range Mode is active, we use the pre-fetched range data
+    if (isRangeMode) {
+      const bookedByStudio: Record<string, { count: number; slots: any[] }> = {};
+      const studios = schedule?.studios || [];
+      studios.forEach(s => bookedByStudio[s] = { count: 0, slots: [] });
+
+      const filteredRangeBookings = rangeBookings.filter(b => {
+        const studioMatch = filterStudio === 'all' || b.studio === filterStudio;
+        const statusMatch = filterAvailability === 'all' || 
+          (filterAvailability === 'booked' && b.requestStatus !== 'pending') ||
+          (filterAvailability === 'pending' && b.requestStatus === 'pending');
+        return studioMatch && statusMatch;
+      });
+
+      filteredRangeBookings.forEach(b => {
+        if (!bookedByStudio[b.studio]) bookedByStudio[b.studio] = { count: 0, slots: [] };
+        bookedByStudio[b.studio].count++;
+        bookedByStudio[b.studio].slots.push({
+          ...b,
+          time: `${format(new Date(b.startTime), 'MMM d')} • ${b.startTimeLabel}`,
+          intervalStart: b.startTime,
+          studioName: b.studio
+        });
+      });
+
+      return { bookedByStudio, availableByStudio: {}, totalAvailable: 0 };
+    }
+
+    // Default: Single Day View Summary
+    const empty = { bookedByStudio: {}, availableByStudio: {}, totalAvailable: 0 };
     if (!schedule) return empty;
     
-    const now = new Date();
     const bookedByStudio: Record<string, { count: number; slots: any[] }> = {};
     const availableByStudio: Record<string, { count: number; slots: any[] }> = {};
+    let totalAvailable = 0;
 
     schedule.studios.forEach(s => {
       bookedByStudio[s] = { count: 0, slots: [] };
@@ -131,14 +191,10 @@ export function CalendarDashboard() {
             if (bookedByStudio[studio]) {
               bookedByStudio[studio].count++;
               bookedByStudio[studio].slots.push({
-                id: slot.id,
-                subject: slot.subject,
+                ...slot,
                 time: `${slot.startTimeLabel} - ${slot.endTimeLabel}`,
-                duration: slot.durationLabel || '',
                 intervalStart: interval.start,
                 studioName: studio,
-                requestStatus: slot.requestStatus,
-                isPrep: slot.isPrepSlot
               });
             }
           }
@@ -155,6 +211,7 @@ export function CalendarDashboard() {
 
           if (availableByStudio[studio]) {
             availableByStudio[studio].count++;
+            totalAvailable++;
             availableByStudio[studio].slots.push({
               id: slot.id,
               time: slot.startTimeLabel || '',
@@ -167,20 +224,17 @@ export function CalendarDashboard() {
       });
     });
 
-    return { bookedByStudio, availableByStudio };
-  }, [schedule]);
+    return { bookedByStudio, availableByStudio, totalAvailable };
+  }, [schedule, rangeBookings, isRangeMode, filterStudio, filterAvailability]);
 
   const totalBookedCount = useMemo(() => {
     if (!summaryData?.bookedByStudio) return 0;
     return Object.values(summaryData.bookedByStudio).reduce((acc, curr: any) => acc + (curr?.count || 0), 0);
   }, [summaryData]);
 
-  const totalAvailableCount = useMemo(() => {
-    if (!summaryData?.availableByStudio) return 0;
-    return Object.values(summaryData.availableByStudio).reduce((acc, curr: any) => acc + (curr?.count || 0), 0);
-  }, [summaryData]);
-
   const scrollToSlot = (intervalStart: string, studioName: string) => {
+    // Scroll only works for current day view
+    if (isRangeMode) return;
     const id = `slot-${intervalStart}-${studioName.replace(/\s+/g, '-')}`;
     const element = document.getElementById(id);
     if (element) {
@@ -267,7 +321,7 @@ export function CalendarDashboard() {
       </section>
 
       {/* Operations Bar */}
-      <div className="shrink-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900/50 px-6 py-8 flex flex-col items-center gap-8 z-[100]">
+      <div className="shrink-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900/50 px-6 py-8 flex flex-col items-center gap-6 z-[100]">
         <div className="flex items-center gap-6 flex-wrap justify-center w-full">
           <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
             <Button variant="ghost" size="icon" onClick={prevDay} className="h-10 w-10 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-lg">
@@ -309,6 +363,7 @@ export function CalendarDashboard() {
           </Button>
         </div>
 
+        {/* Existing Studio/Status Filters */}
         <div className="flex items-center gap-10 flex-wrap justify-center w-full">
           <div className="flex items-center gap-4">
               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2.5">
@@ -353,6 +408,71 @@ export function CalendarDashboard() {
             </Button>
           )}
         </div>
+
+        {/* New Range Filter Row */}
+        <div className="flex items-center gap-8 flex-wrap justify-center w-full border-t border-zinc-900 pt-6">
+          <div className="flex items-center gap-4">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2.5">
+                  <CalendarRange className="w-4 h-4 text-orange-500" />
+                  START DATE
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[200px] h-10 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black uppercase tracking-widest",
+                      !startDate && "text-zinc-600"
+                    )}
+                  >
+                    {startDate ? format(startDate, "MMM d, yyyy") : "Select Start"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 z-[1000]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate || undefined}
+                    onSelect={setStartDate}
+                    className="bg-zinc-900 text-white"
+                  />
+                </PopoverContent>
+              </Popover>
+          </div>
+
+          <div className="flex items-center gap-4">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2.5">
+                  <CalendarRange className="w-4 h-4 text-orange-500" />
+                  END DATE
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[200px] h-10 rounded-xl bg-zinc-900 border-zinc-800 text-xs font-black uppercase tracking-widest",
+                      !endDate && "text-zinc-600"
+                    )}
+                  >
+                    {endDate ? format(endDate, "MMM d, yyyy") : "Select End"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 z-[1000]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate || undefined}
+                    onSelect={setEndDate}
+                    className="bg-zinc-900 text-white"
+                  />
+                </PopoverContent>
+              </Popover>
+          </div>
+          
+          {isRangeMode && (
+            <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20 px-4 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-widest animate-pulse">
+              ANALYZING RANGE: {format(startDate, 'MMM d')} - {format(endDate, 'MMM d')}
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -362,16 +482,21 @@ export function CalendarDashboard() {
                   <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                       <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-orange-500" />
-                          Occupied Slots
+                          {isRangeMode ? 'Range Bookings' : 'Occupied Slots'}
                       </div>
                       <span className="text-xl text-white">
-                        {filterStudio === 'all' ? totalBookedCount : (summaryData.bookedByStudio[filterStudio]?.count || 0)}
+                        {totalBookedCount}
                       </span>
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                   <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-800">
-                      {filterStudio === 'all' ? (
+                      {rangeLoading ? (
+                        <div className="flex flex-col items-center justify-center py-12 gap-3">
+                          <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                          <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Fetching Range Data</p>
+                        </div>
+                      ) : filterStudio === 'all' && !isRangeMode ? (
                           Object.entries(summaryData.bookedByStudio || {})
                               .filter(([_, data]: [any, any]) => data.count > 0)
                               .map(([studio, data]: [string, any]) => (
@@ -381,27 +506,34 @@ export function CalendarDashboard() {
                                   </div>
                               ))
                       ) : (
-                          summaryData.bookedByStudio[filterStudio]?.slots?.map((b: any) => (
-                              <div 
-                                key={b.id} 
-                                onClick={() => scrollToSlot(b.intervalStart, b.studioName)}
-                                className="flex flex-col border-b border-zinc-800/30 pb-2 last:border-0 last:pb-0 cursor-pointer hover:bg-white/5 p-1 rounded-lg transition-all"
-                              >
-                                  <div className="flex items-center justify-between">
-                                      <span className={cn(
-                                        "text-[10px] font-black uppercase tracking-tight truncate mr-2",
-                                        b.requestStatus === 'pending' ? "text-yellow-500" : (b.isPrep ? "text-purple-400" : "text-white")
-                                      )}>{b.subject}</span>
-                                      <span className={cn(
-                                        "text-[9px] font-black whitespace-nowrap",
-                                        b.requestStatus === 'pending' ? "text-yellow-500" : (b.isPrep ? "text-purple-400" : "text-red-500")
-                                      )}>{b.time}</span>
-                                  </div>
-                                  <span className="text-[8px] font-black text-zinc-500 uppercase tracking-[0.2em]">{b.duration}</span>
-                              </div>
-                          ))
+                          // Unified slot list for filtered studio OR range mode
+                          Object.values(summaryData.bookedByStudio || {})
+                              .flatMap((data: any) => data.slots || [])
+                              .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+                              .map((b: any) => (
+                                <div 
+                                  key={b.id} 
+                                  onClick={() => scrollToSlot(b.intervalStart, b.studioName)}
+                                  className="flex flex-col border-b border-zinc-800/30 pb-2 last:border-0 last:pb-0 cursor-pointer hover:bg-white/5 p-1 rounded-lg transition-all"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex flex-col min-w-0">
+                                          <span className={cn(
+                                            "text-[10px] font-black uppercase tracking-tight truncate",
+                                            b.requestStatus === 'pending' ? "text-yellow-500" : (b.isPrep ? "text-purple-400" : "text-white")
+                                          )}>{b.subject}</span>
+                                          {isRangeMode && <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-tight">{b.studioName}</span>}
+                                        </div>
+                                        <span className={cn(
+                                          "text-[9px] font-black whitespace-nowrap ml-4",
+                                          b.requestStatus === 'pending' ? "text-yellow-500" : (b.isPrep ? "text-purple-400" : "text-red-500")
+                                        )}>{b.time}</span>
+                                    </div>
+                                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-[0.2em]">{b.durationLabel || b.duration || ''}</span>
+                                </div>
+                              ))
                       )}
-                      {(filterStudio === 'all' ? totalBookedCount : (summaryData.bookedByStudio[filterStudio]?.count || 0)) === 0 && (
+                      {totalBookedCount === 0 && !rangeLoading && (
                           <p className="text-[9px] text-zinc-600 font-black text-center py-6 uppercase tracking-widest">No matching records</p>
                       )}
                   </div>
@@ -413,16 +545,24 @@ export function CalendarDashboard() {
                   <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                       <div className="flex items-center gap-2">
                           <CircleDashed className="w-4 h-4 text-emerald-500" />
-                          Available Slots
+                          {isRangeMode ? 'Daily Average Avail.' : 'Available Slots'}
                       </div>
                       <span className="text-xl text-emerald-500">
-                        {filterStudio === 'all' ? totalAvailableCount : (summaryData.availableByStudio[filterStudio]?.count || 0)}
+                        {isRangeMode ? Math.round(summaryData.totalAvailable / (rangeBookings.length > 0 ? 1 : 1)) : summaryData.totalAvailable}
                       </span>
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                   <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-800">
-                      {filterStudio === 'all' ? (
+                      {isRangeMode ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center gap-4">
+                           <Info className="w-8 h-8 text-zinc-700" />
+                           <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">
+                             Detailed availability matrix is only<br/>visible in Day-View mode.<br/>
+                             <span className="text-zinc-600">Select a specific date from the solo calendar.</span>
+                           </p>
+                        </div>
+                      ) : filterStudio === 'all' ? (
                           Object.entries(summaryData.availableByStudio || {})
                               .filter(([_, data]: [any, any]) => data.count > 0)
                               .map(([studio, data]: [string, any]) => (
@@ -449,7 +589,7 @@ export function CalendarDashboard() {
                               ))}
                           </div>
                       )}
-                      {(filterStudio === 'all' ? totalAvailableCount : (summaryData.availableByStudio[filterStudio]?.count || 0)) === 0 && (
+                      {summaryData.totalAvailable === 0 && !isRangeMode && (
                           <p className="text-[9px] text-zinc-600 font-black text-center py-6 uppercase tracking-widest">No available slots</p>
                       )}
                   </div>
