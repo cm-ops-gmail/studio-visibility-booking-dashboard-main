@@ -2,7 +2,7 @@
 
 import { getSheetData, getBulkBookingData, getRequestsData, appendBulkBookingData } from '@/app/lib/google-sheets';
 import { BulkPreviewEntry } from '@/app/lib/types';
-import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes } from 'date-fns';
+import { parse, format, addHours, isValid, areIntervalsOverlapping, subMinutes, startOfDay } from 'date-fns';
 
 const CLASS_DURATION_HOURS = 2;
 const PREP_DURATION_MINUTES = 30;
@@ -38,13 +38,13 @@ function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
-    const monthDay = parts[1];
-    const year = parts[2] || new Date().getFullYear().toString();
+    const monthDay = parts[0].match(/^[a-zA-Z]+$/) ? parts[1] : parts[0];
+    const year = parts[parts.length - 1];
     const d = parse(`${monthDay} ${year}`, 'MMMM d yyyy', new Date());
-    if (isValid(d)) return d;
+    if (isValid(d)) return startOfDay(d);
   }
   const d = new Date(dateStr);
-  return isValid(d) ? d : null;
+  return isValid(d) ? startOfDay(d) : null;
 }
 
 function parseTime(timeStr: string, referenceDay: Date): Date | null {
