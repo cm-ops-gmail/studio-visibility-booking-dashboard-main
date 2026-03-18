@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSheetData, getBulkBookingData } from '@/app/lib/google-sheets';
@@ -118,6 +119,13 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
   // Process Bulk Bookings
   const bulkBookings: ClassBooking[] = bulkRows
     .map((row) => {
+      if (!row.StartTimeISO || !row.EndTimeISO) return null;
+      
+      const startD = new Date(row.StartTimeISO);
+      const endD = new Date(row.EndTimeISO);
+      
+      if (!isValid(startD) || !isValid(endD)) return null;
+
       const dateVal = String(row.Date || '').trim();
       const parsedDay = parseSheetDate(dateVal);
       if (!parsedDay) return null;
@@ -140,8 +148,8 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         productType: row['Product Type'] || '',
         startTime: row.StartTimeISO,
         endTime: row.EndTimeISO,
-        startTimeLabel: format(new Date(row.StartTimeISO), 'h:mm a'),
-        endTimeLabel: format(new Date(row.EndTimeISO), 'h:mm a'),
+        startTimeLabel: format(startD, 'h:mm a'),
+        endTimeLabel: format(endD, 'h:mm a'),
         isBooked: true,
         isBulk: true
       };
