@@ -5,6 +5,7 @@ import { fetchDaySchedule, fetchRangeData } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays, isBefore, parse, isValid, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -107,7 +108,7 @@ export function CalendarDashboard() {
     setEndDate(null);
   };
 
-  const isRangeMode = startDate && endDate;
+  const isRangeMode = !!(startDate && endDate);
   const isFiltered = filterStudio !== 'all' || filterAvailability !== 'all' || isRangeMode;
 
   const filteredStudios = useMemo(() => {
@@ -467,7 +468,7 @@ export function CalendarDashboard() {
               </Popover>
           </div>
           
-          {isRangeMode && (
+          {isRangeMode && startDate && endDate && (
             <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20 px-4 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-widest animate-pulse">
               ANALYZING RANGE: {format(startDate, 'MMM d')} - {format(endDate, 'MMM d')}
             </Badge>
