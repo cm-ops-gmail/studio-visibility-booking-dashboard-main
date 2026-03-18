@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '13H2FFJ8WzKbis-Ud9SXlea9NNTM6exnOaguML8MVZI4';
 const SHEET_NAME = 'Daywise_Class_OPS';
 const REQUESTS_SHEET_NAME = 'Requests';
+const BULK_SHEET_NAME = 'Bulk_Slot_Booking';
 
 // Credentials use environment variables with hardcoded fallbacks for local development
 const CREDENTIALS = {
@@ -102,6 +103,74 @@ export async function getRequestsData() {
   } catch (error) {
     console.error('Error fetching requests from sheet:', error);
     return [];
+  }
+}
+
+export async function getBulkBookingData() {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: CREDENTIALS,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${BULK_SHEET_NAME}!A:ZZ`,
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length < 1) return [];
+
+    const headers = rows[0].map(h => String(h || '').trim());
+    return rows.slice(1).map((row, index) => {
+      const obj: any = { id: `bulk-${index}` };
+      headers.forEach((header, i) => {
+        obj[header] = row[i];
+      });
+      return obj;
+    });
+  } catch (error) {
+    console.error('Error fetching bulk bookings:', error);
+    return [];
+  }
+}
+
+export async function appendBulkBookingData(data: string[][]) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: CREDENTIALS,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    
+    // Check if sheet exists, if not create it with headers
+    try {
+      await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${BULK_SHEET_NAME}!A1`,
+      });
+    } catch (e) {
+      const headers = ["Date", "Scheduled Time", "Product Type", "Course", "Subject", "Topic", "Teacher 1", "Studio", "StartTimeISO", "EndTimeISO"];
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${BULK_SHEET_NAME}!A1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [headers] }
+      });
+    }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${BULK_SHEET_NAME}!A:J`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: data,
+      },
+    });
+  } catch (error) {
+    console.error('Error appending bulk booking to sheet:', error);
   }
 }
 

@@ -5,7 +5,7 @@ import { fetchDaySchedule } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays, isBefore, parse, isValid } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info, Monitor, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, Zap, CheckCircle2, CircleDashed, CalendarDays, Lock, Info, Monitor, Calendar as CalendarIcon, LayoutList } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -36,7 +36,6 @@ export function CalendarDashboard() {
     setFormattedDateLabel(format(now, 'MMMM d, yyyy').toUpperCase());
     setIsMounted(true);
 
-    // Live Clock for BD Time
     const updateTime = () => {
       const bdTime = new Intl.DateTimeFormat('en-US', {
         timeZone: 'Asia/Dhaka',
@@ -144,7 +143,6 @@ export function CalendarDashboard() {
             }
           }
         } else {
-          // Check for expiration
           let isExpired = false;
           try {
             const referenceDate = parse(slot.date, 'yyyy-MM-dd', new Date());
@@ -219,6 +217,12 @@ export function CalendarDashboard() {
               Live Class Monitor
             </Button>
           </Link>
+          <Link href="/bulk-booking">
+            <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
+              <LayoutList className="w-3.5 h-3.5" />
+              Bulk Slot Booking
+            </Button>
+          </Link>
           <Link href="/admin">
             <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
               <Lock className="w-3.5 h-3.5" />
@@ -262,7 +266,7 @@ export function CalendarDashboard() {
         </div>
       </section>
 
-      {/* Operations Bar (Date, Sync, Filters) */}
+      {/* Operations Bar */}
       <div className="shrink-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900/50 px-6 py-8 flex flex-col items-center gap-8 z-[100]">
         <div className="flex items-center gap-6 flex-wrap justify-center w-full">
           <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
@@ -279,11 +283,7 @@ export function CalendarDashboard() {
                     !date && "text-muted-foreground"
                   )}
                 >
-                  {date ? (
-                    format(date, "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -457,7 +457,7 @@ export function CalendarDashboard() {
           </Card>
       </div>
 
-      {/* Calendar Section (Dataframe) */}
+      {/* Calendar Section */}
       <div className="px-6 pb-6 flex-1 flex flex-col min-h-0">
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-6 bg-zinc-900/20 border border-zinc-900 rounded-[3rem]">

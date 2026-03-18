@@ -1,4 +1,3 @@
-
 export interface ClassBooking {
   id: string;
   studio: string;
@@ -23,6 +22,7 @@ export interface ClassBooking {
   requestStatus?: 'pending' | 'approved' | 'rejected';
   requestedAt?: string; // ISO
   requestedDuration?: string; // e.g. "1h 30m"
+  isBulk?: boolean; // Flag for bulk booked items
 }
 
 export interface TimeInterval {
@@ -46,4 +46,12 @@ export interface BookingRequest {
   duration: string;
   status: 'pending' | 'approved' | 'rejected';
   requestedAt: string; // ISO
+}
+
+export interface BulkPreviewEntry extends Omit<ClassBooking, 'isBooked'> {
+  conflicts: {
+    studio: boolean;
+    teacher: boolean;
+  };
+  isDuplicate: boolean;
 }

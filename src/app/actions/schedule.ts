@@ -1,10 +1,8 @@
-
 'use server';
 
-import { getSheetData } from '@/app/lib/google-sheets';
+import { getSheetData, getBulkBookingData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes, differenceInMinutes } from 'date-fns';
-import { suggestSmartSlotDescription } from '@/ai/flows/smart-slot-description-flow';
+import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes } from 'date-fns';
 import { getActiveRequestsOverlay } from './booking';
 
 const CLASS_DURATION_HOURS = 2;
@@ -60,52 +58,25 @@ function parseTime(timeStr: string, referenceDay: Date): Date | null {
         const t = parse(cleanTime, fmt, referenceDay);
         if (isValid(t)) return t;
     }
-    try {
-        const d = new Date(`${format(referenceDay, 'yyyy-MM-dd')} ${cleanTime}`);
-        if (isValid(d)) return d;
-    } catch (e) {}
     return null;
 }
 
 export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedule> {
-  const allRows = await getSheetData();
-  const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
+  const [allRows, bulkRows, requestsOverlay] = await Promise.all([
+    getSheetData(),
+    getBulkBookingData(),
+    getActiveRequestsOverlay()
+  ]);
   
-  // Fetch overlay for pending/approved requests from the "Requests" tab
-  const requestsOverlay = await getActiveRequestsOverlay();
+  const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
 
-  let studioKey = 'Studio', timeKey = 'Scheduled Time', dateKey = 'Date', 
-      teacherKey = 'Teacher 1', courseKey = 'Course', subjectKey = 'Subject', topicKey = 'Topic',
-      productTypeKey = 'Product Type', entryTimeKey = 'Entry Time [T-45min/T-30min]';
-
-  if (allRows.length > 0) {
-    const keys = Object.keys(allRows[0]);
-    const findKey = (candidates: string[]) => 
-      keys.find(k => candidates.some(c => k.trim().toLowerCase() === c.toLowerCase())) || 
-      keys.find(k => candidates.some(c => k.trim().toLowerCase().includes(c.toLowerCase().split(' ')[0]))) ||
-      candidates[0];
-
-    studioKey = findKey(['Studio', 'Studio Name']);
-    timeKey = findKey(['Scheduled Time', 'Time', 'Start Time']);
-    dateKey = findKey(['Date', 'Class Date']);
-    teacherKey = findKey(['Teacher 1', 'Teacher Name', 'Teacher']);
-    courseKey = findKey(['Course', 'Course Name']);
-    subjectKey = findKey(['Subject', 'Subject Name']);
-    topicKey = findKey(['Topic', 'Lesson Topic']);
-    productTypeKey = findKey(['Product Type', 'Type']);
-    entryTimeKey = findKey(['Entry Time [T-45min/T-30min]', 'Entry Time']);
-  }
-
+  // Process Main Sheet Bookings
   const sheetBookings: ClassBooking[] = allRows
     .map((row, index) => {
-      const dateVal = String(row[dateKey] || '').trim();
-      const timeVal = String(row[timeKey] || '').trim();
-      const studioRaw = String(row[studioKey] || '').trim();
-      const productType = String(row[productTypeKey] || '').trim();
-      const entryTimeVal = String(row[entryTimeKey] || '').trim();
+      const dateVal = String(row.Date || '').trim();
+      const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
+      const studioRaw = String(row.Studio || row['Studio Name'] || '').trim();
       
-      if (!dateVal || !timeVal || !studioRaw) return null;
-
       const parsedDay = parseSheetDate(dateVal);
       if (!parsedDay) return null;
 
@@ -117,29 +88,18 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
 
       const startTime = parseTime(timeVal, referenceDay);
       if (!startTime) return null;
-
-      let endTime: Date | null = null;
-      if (productType.toLowerCase().includes('studio booking') && entryTimeVal) {
-          const parsedEndTime = parseTime(entryTimeVal, referenceDay);
-          if (parsedEndTime) {
-            endTime = parsedEndTime;
-          }
-      }
-      
-      if (!endTime) {
-          endTime = addHours(startTime, CLASS_DURATION_HOURS);
-      }
+      const endTime = addHours(startTime, CLASS_DURATION_HOURS);
 
       return {
         id: `row-${index}`, 
         studio: studioMatch,
         date: dateVal,
         scheduledTime: timeVal,
-        course: String(row[courseKey] || '').trim(),
-        subject: String(row[subjectKey] || '').trim(),
-        topic: String(row[topicKey] || '').trim(),
-        teacher: String(row[teacherKey] || '').trim(),
-        productType: productType,
+        course: String(row.Course || '').trim(),
+        subject: String(row.Subject || '').trim(),
+        topic: String(row.Topic || '').trim(),
+        teacher: String(row['Teacher 1'] || row.Teacher || '').trim(),
+        productType: String(row['Product Type'] || '').trim(),
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         startTimeLabel: format(startTime, 'h:mm a'),
@@ -148,6 +108,41 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       };
     })
     .filter((b): b is ClassBooking => b !== null);
+
+  // Process Bulk Bookings
+  const bulkBookings: ClassBooking[] = bulkRows
+    .map((row) => {
+      const dateVal = String(row.Date || '').trim();
+      const parsedDay = parseSheetDate(dateVal);
+      if (!parsedDay) return null;
+
+      const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
+      if (rowDateStr !== targetDateStr) return null;
+
+      const studioMatch = normalizeStudio(row.Studio);
+      if (!ALLOWED_STUDIOS.includes(studioMatch)) return null;
+
+      return {
+        id: row.id,
+        studio: studioMatch,
+        date: dateVal,
+        scheduledTime: row['Scheduled Time'],
+        course: row.Course || '',
+        subject: row.Subject || '',
+        topic: row.Topic || '',
+        teacher: row['Teacher 1'] || '',
+        productType: row['Product Type'] || '',
+        startTime: row.StartTimeISO,
+        endTime: row.EndTimeISO,
+        startTimeLabel: format(new Date(row.StartTimeISO), 'h:mm a'),
+        endTimeLabel: format(new Date(row.EndTimeISO), 'h:mm a'),
+        isBooked: true,
+        isBulk: true
+      };
+    })
+    .filter((b): b is ClassBooking => b !== null);
+
+  const combinedBookings = [...sheetBookings, ...bulkBookings];
 
   const intervals: TimeInterval[] = [];
   const dayStart = setMinutes(setHours(referenceDay, DAY_START_HOUR), 0);
@@ -164,9 +159,9 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     current = next;
   }
 
-  // Pre-calculate Prep Slots: For each non-Studio Booking class, mark the 30min interval before it
+  // Prep Slots logic
   const prepSlots: Record<string, Set<string>> = {};
-  sheetBookings.forEach(b => {
+  combinedBookings.forEach(b => {
     const isStudioBooking = (b.productType || '').toLowerCase().includes('studio booking');
     if (!isStudioBooking) {
       const bStartISO = b.startTime;
@@ -186,24 +181,17 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     const midPoint = addMinutes(intervalStart, 1);
 
     ALLOWED_STUDIOS.forEach((studio) => {
-      // 1. Check Main Sheet Data
-      const activeSheetBooking = sheetBookings.find(b => {
+      const activeSheetBooking = combinedBookings.find(b => {
         if (b.studio !== studio) return false;
         const bStart = new Date(b.startTime);
         const bEnd = new Date(b.endTime);
         return midPoint >= bStart && midPoint < bEnd;
       });
 
-      // 2. Check Requests Overlay
       const activeRequest = requestsOverlay.find(req => {
         if (req.studio !== studio || req.date !== targetDateStr) return false;
         const reqStart = new Date(req.startTime);
-        
-        let durationHrs = 1;
-        if (req.duration === '30 mins') durationHrs = 0.5;
-        if (req.duration === '1 hr 30 mins') durationHrs = 1.5;
-        if (req.duration === '2 hrs') durationHrs = 2;
-        
+        let durationHrs = req.duration === '30 mins' ? 0.5 : (req.duration === '1 hr 30 mins' ? 1.5 : (req.duration === '2 hrs' ? 2 : 1));
         const reqEnd = addHours(reqStart, durationHrs);
         return midPoint >= reqStart && midPoint < reqEnd;
       });
@@ -219,17 +207,11 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         teacher: 'Pending',
         productType: 'STUDIO BOOKING',
         startTime: activeRequest.startTime,
-        endTime: addHours(new Date(activeRequest.startTime), 
-          activeRequest.duration === '30 mins' ? 0.5 : 
-          activeRequest.duration === '1 hr 30 mins' ? 1.5 : 
-          activeRequest.duration === '2 hrs' ? 2 : 1
-        ).toISOString(),
-        startTimeLabel: format(new Date(activeRequest.startTime), 'h:mm a'),
+        endTime: addHours(new Date(activeRequest.startTime), 1).toISOString(),
         isBooked: true,
         requestStatus: activeRequest.status,
       } as ClassBooking : null);
 
-      // 3. Preparation Slot Logic: If not booked, check if it's a prep slot
       const isPrepSlot = !activeBooking && prepSlots[interval.start]?.has(studio);
 
       const finalBooking = activeBooking || (isPrepSlot ? {
@@ -244,8 +226,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         productType: 'PREPARATION',
         startTime: interval.start,
         endTime: interval.end,
-        startTimeLabel: format(intervalStart, 'h:mm a'),
-        endTimeLabel: format(new Date(interval.end), 'h:mm a'),
         isBooked: true,
         isPrepSlot: true,
       } as ClassBooking : null);
@@ -253,7 +233,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       if (finalBooking) {
         const bStart = new Date(finalBooking.startTime);
         const bEnd = new Date(finalBooking.endTime);
-        
         const prevIntervalStart = addMinutes(intervalStart, -INTERVAL_MINUTES);
         const prevMidPoint = addMinutes(prevIntervalStart, 1);
         const isFirst = !(prevMidPoint >= bStart && prevMidPoint < bEnd && prevIntervalStart >= dayStart);
@@ -263,44 +242,26 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
             let scan = addMinutes(intervalStart, INTERVAL_MINUTES);
             while (scan <= dayEnd) {
                 const scanMid = addMinutes(scan, 1);
-                if (scanMid >= bStart && scanMid < bEnd) {
-                    rowSpan++;
-                } else {
-                    break;
-                }
+                if (scanMid >= bStart && scanMid < bEnd) rowSpan++;
+                else break;
                 scan = addMinutes(scan, INTERVAL_MINUTES);
             }
         }
 
-        grid[interval.start][studio] = {
-          ...finalBooking,
-          isFirst,
-          rowSpan
-        };
+        grid[interval.start][studio] = { ...finalBooking, isFirst, rowSpan };
       } else {
         grid[interval.start][studio] = {
           id: `free-${studio}-${interval.start}`,
           studio,
           date: targetDateStr,
           scheduledTime: format(intervalStart, 'h:mm a'),
-          course: '',
-          subject: '',
-          topic: '',
-          teacher: '',
-          productType: '',
-          startTime: interval.start,
-          endTime: interval.end,
-          startTimeLabel: format(intervalStart, 'h:mm a'),
+          course: '', subject: '', topic: '', teacher: '', productType: '',
+          startTime: interval.start, endTime: interval.end,
           isBooked: false,
         };
       }
     });
   });
 
-  return {
-    date: targetDateStr,
-    studios: ALLOWED_STUDIOS,
-    intervals,
-    grid,
-  };
+  return { date: targetDateStr, studios: ALLOWED_STUDIOS, intervals, grid };
 }
