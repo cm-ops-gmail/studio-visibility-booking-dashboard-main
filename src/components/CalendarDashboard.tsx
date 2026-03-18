@@ -3,16 +3,18 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchDaySchedule, fetchRangeData } from '@/app/actions/schedule';
 import { DaySchedule, ClassBooking } from '@/app/lib/types';
-import { format, addDays, subDays, isBefore, parse, isValid, eachDayOfInterval, startOfDay, addMinutes, setHours, setMinutes } from 'date-fns';
+import { format, addDays, subDays, isBefore, parse, isValid, eachDayOfInterval, startOfDay, addMinutes, setHours, setMinutes, isSameDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, CheckCircle2, CircleDashed, CalendarDays, Lock, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, CheckCircle2, CircleDashed, CalendarDays, Lock, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange, ChevronDown, ChevronUp, Search, MapPin, Eye } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -29,7 +31,7 @@ export function CalendarDashboard() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [rangeBookings, setRangeBookings] = useState<ClassBooking[]>([]);
   const [rangeLoading, setRangeLoading] = useState(false);
-  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // Filter States
   const [filterStudio, setFilterStudio] = useState<string>('all');
@@ -109,10 +111,6 @@ export function CalendarDashboard() {
   const isRangeMode = !!(startDate && endDate);
   const isFiltered = filterStudio !== 'all' || filterAvailability !== 'all' || isRangeMode;
 
-  const toggleDayExpansion = (day: string) => {
-    setExpandedDays(prev => ({ ...prev, [day]: !prev[day] }));
-  };
-
   const filteredStudios = useMemo(() => {
     if (!schedule) return [];
     if (filterStudio === 'all') return schedule.studios;
@@ -143,7 +141,7 @@ export function CalendarDashboard() {
     
     if (isRangeMode && startDate && endDate) {
       const bookedByStudio: Record<string, { count: number; slots: any[] }> = {};
-      const availableByDay: Record<string, { dateLabel: string; slots: any[] }> = {};
+      const availableByDay: Record<string, { dateLabel: string; studios: Record<string, any[]> }> = {};
       studios.forEach(s => bookedByStudio[s] = { count: 0, slots: [] });
 
       const filteredRangeBookings = rangeBookings.filter(b => {
@@ -172,20 +170,20 @@ export function CalendarDashboard() {
       days.forEach(day => {
         const dayStr = format(day, 'yyyy-MM-dd');
         const dayLabel = format(day, 'EEEE, MMM d');
-        availableByDay[dayStr] = { dateLabel: dayLabel, slots: [] };
+        availableByDay[dayStr] = { dateLabel: dayLabel, studios: {} };
 
         // Generate intervals for this day (10 AM - 10 PM)
         const dayStart = setMinutes(setHours(startOfDay(day), 10), 0);
         const dayEnd = setMinutes(setHours(startOfDay(day), 22), 0);
 
-        let current = new Date(dayStart);
-        while (current <= dayEnd) {
-          const next = addMinutes(current, 30);
-          const currentISO = current.toISOString();
-          const midPoint = addMinutes(current, 1);
+        studios.forEach(studio => {
+          if (filterStudio !== 'all' && studio !== filterStudio) return;
+          availableByDay[dayStr].studios[studio] = [];
 
-          studios.forEach(studio => {
-            if (filterStudio !== 'all' && studio !== filterStudio) return;
+          let current = new Date(dayStart);
+          while (current <= dayEnd) {
+            const next = addMinutes(current, 30);
+            const midPoint = addMinutes(current, 1);
 
             const isOccupied = rangeBookings.some(b => {
                 if (b.studio !== studio) return false;
@@ -196,18 +194,17 @@ export function CalendarDashboard() {
 
             if (!isOccupied) {
               const isExpired = isBefore(current, now);
-              availableByDay[dayStr].slots.push({
-                id: `range-free-${dayStr}-${studio}-${currentISO}`,
+              availableByDay[dayStr].studios[studio].push({
+                id: `range-free-${dayStr}-${studio}-${current.toISOString()}`,
                 time: format(current, 'h:mm a'),
-                studioName: studio,
-                isExpired,
-                intervalStart: currentISO
+                intervalStart: current.toISOString(),
+                isExpired
               });
               totalAvailableInRange++;
             }
-          });
-          current = next;
-        }
+            current = next;
+          }
+        });
       });
 
       return { bookedByStudio, availableByDay, totalAvailable: totalAvailableInRange };
@@ -281,18 +278,22 @@ export function CalendarDashboard() {
   }, [summaryData]);
 
   const scrollToSlot = (intervalStart: string, studioName: string) => {
-    if (isRangeMode) {
-      const dateStr = format(new Date(intervalStart), 'yyyy-MM-dd');
-      setDate(new Date(dateStr));
+    const targetDate = new Date(intervalStart);
+    if (isRangeMode || (date && !isSameDay(date, targetDate))) {
+      setDate(targetDate);
       setStartDate(null);
       setEndDate(null);
+      setIsDetailsOpen(false);
+      // Let the grid render then scroll
+      setTimeout(() => {
+        const id = `slot-${intervalStart}-${studioName.replace(/\s+/g, '-')}`;
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      }, 800);
       return;
     }
     const id = `slot-${intervalStart}-${studioName.replace(/\s+/g, '-')}`;
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-    }
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    setIsDetailsOpen(false);
   };
 
   if (!isMounted) {
@@ -510,7 +511,78 @@ export function CalendarDashboard() {
               <CardHeader className="py-3 border-b border-zinc-800 bg-white/5">
                   <CardTitle className="text-sm font-black text-white flex items-center justify-between uppercase tracking-widest">
                       <div className="flex items-center gap-2"><CircleDashed className="w-4 h-4 text-emerald-500" /> {isRangeMode ? 'Range Availability' : 'Available Slots'}</div>
-                      <span className="text-xl text-emerald-500">{summaryData.totalAvailable}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl text-emerald-500">{summaryData.totalAvailable}</span>
+                        {isRangeMode && (
+                          <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-7 text-[8px] font-black uppercase tracking-widest border-emerald-500/50 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg">
+                                <Eye className="w-3 h-3 mr-1" /> VIEW BREAKDOWN
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-5xl bg-zinc-950 border-zinc-800 text-white h-[80vh] flex flex-col p-0 overflow-hidden shadow-2xl">
+                              <DialogHeader className="p-8 border-b border-zinc-900 bg-zinc-950">
+                                <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                  <Search className="w-6 h-6 text-emerald-500" />
+                                  Detailed Range Availability
+                                </DialogTitle>
+                                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.4em] mt-2">
+                                  Analyzing {format(startDate!, 'MMM d')} to {format(endDate!, 'MMM d')} • {summaryData.totalAvailable} Slots Found
+                                </p>
+                              </DialogHeader>
+                              <ScrollArea className="flex-1 p-8 bg-zinc-950">
+                                <div className="space-y-12">
+                                  {Object.entries(summaryData.availableByDay || {}).map(([day, dayData]: [string, any]) => {
+                                    const totalForDay = Object.values(dayData.studios).reduce((acc, curr: any) => acc + curr.length, 0);
+                                    if (totalForDay === 0) return null;
+
+                                    return (
+                                      <div key={day} className="space-y-6 animate-in-fade">
+                                        <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+                                          <h3 className="text-lg font-black uppercase tracking-tighter text-white">{dayData.dateLabel}</h3>
+                                          <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] font-black tracking-widest">{totalForDay} SLOTS AVAILABLE</Badge>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                          {Object.entries(dayData.studios).map(([studio, slots]: [string, any]) => (
+                                            slots.length > 0 && (
+                                              <Card key={`${day}-${studio}`} className="bg-zinc-900 border-zinc-800 shadow-xl overflow-hidden group hover:border-zinc-700 transition-all">
+                                                <CardHeader className="py-3 px-4 bg-white/5 border-b border-zinc-800">
+                                                  <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                                                    <MapPin className="w-3 h-3 text-emerald-500" />
+                                                    {studio}
+                                                  </CardTitle>
+                                                </CardHeader>
+                                                <CardContent className="p-4">
+                                                  <div className="grid grid-cols-2 gap-2">
+                                                    {slots.map((s: any) => (
+                                                      <button 
+                                                        key={s.id} 
+                                                        onClick={() => scrollToSlot(s.intervalStart, studio)}
+                                                        className={cn(
+                                                          "p-2 rounded-lg border text-center transition-all",
+                                                          s.isExpired 
+                                                            ? "bg-sky-500/5 border-sky-500/20 text-sky-400/60 hover:bg-sky-500/20 text-[9px] font-bold" 
+                                                            : "bg-emerald-500/5 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white text-[9px] font-black"
+                                                        )}
+                                                      >
+                                                        {s.time}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                </CardContent>
+                                              </Card>
+                                            )
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </ScrollArea>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
                   </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -522,31 +594,12 @@ export function CalendarDashboard() {
                         </div>
                       ) : isRangeMode ? (
                         <div className="space-y-4">
-                          {Object.entries(summaryData.availableByDay || {}).map(([day, dayData]: [string, any]) => {
-                            if (dayData.slots.length === 0) return null;
-                            const isExpanded = expandedDays[day];
-                            return (
-                              <div key={day} className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950/40">
-                                <button onClick={() => toggleDayExpansion(day)} className="w-full flex items-center justify-between p-3 bg-zinc-900 hover:bg-zinc-800 transition-colors">
-                                  <span className="text-[10px] font-black uppercase tracking-widest">{dayData.dateLabel}</span>
-                                  <div className="flex items-center gap-3">
-                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[8px] font-black">{dayData.slots.length} SLOTS</Badge>
-                                    {isExpanded ? <ChevronUp className="w-3 h-3 text-zinc-500" /> : <ChevronDown className="w-3 h-3 text-zinc-500" />}
-                                  </div>
-                                </button>
-                                {isExpanded && (
-                                  <div className="p-2 grid grid-cols-2 gap-2 border-t border-zinc-800 animate-in-fade">
-                                    {dayData.slots.map((s: any) => (
-                                      <div key={s.id} onClick={() => scrollToSlot(s.intervalStart, s.studioName)} className={cn("p-2 rounded-lg border text-center cursor-pointer transition-all", s.isExpired ? "bg-sky-500/10 border-sky-500/20 text-sky-400 hover:bg-sky-500/20" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20")}>
-                                        <div className="text-[9px] font-black">{s.time}</div>
-                                        <div className="text-[7px] opacity-50 uppercase font-bold truncate">{s.studioName}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                          <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest text-center py-4 px-8 leading-relaxed">
+                            Range scanning completed. {summaryData.totalAvailable} slots identified across {Object.keys(summaryData.availableByDay || {}).length} days.
+                          </p>
+                          <Button onClick={() => setIsDetailsOpen(true)} className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-900/20 gap-3">
+                            <Search className="w-4 h-4" /> VIEW DAY-WISE BREAKDOWN
+                          </Button>
                         </div>
                       ) : filterStudio === 'all' ? (
                           Object.entries(summaryData.availableByStudio || {})
