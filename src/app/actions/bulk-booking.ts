@@ -231,6 +231,9 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     });
   });
 
+  // Track slots added within this same batch to detect internal conflicts
+  const batchOccupancy: typeof existingOccupancy = [];
+
   rows.forEach((row, i) => {
     const dateStr = row[dateIdx];
     const startTimeStr = row[timeIdx];
@@ -251,14 +254,17 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     const studioMatch = normalizeStudio(studioRaw);
     const teacher = teacherIdx !== -1 ? (row[teacherIdx] || 'TBA') : 'TBA';
     const teacherNorm = teacher.trim().toLowerCase();
+    const subject = subjectIdx !== -1 ? (row[subjectIdx] || '') : '';
 
     const conflicts = { studio: false, teacher: false };
     let isDuplicate = false;
     let conflictingSlot: any = null;
 
-    existingOccupancy.forEach(occ => {
+    // Check against existing database and in-batch rows
+    const allCheckable = [...existingOccupancy, ...batchOccupancy];
+
+    allCheckable.forEach(occ => {
       const occTeacherNorm = (occ.teacher || '').trim().toLowerCase();
-      // Check if this occupancy matches either the studio or the teacher name
       if (occ.studio !== studioMatch && occTeacherNorm !== teacherNorm) return;
 
       const overlap = areIntervalsOverlapping(
@@ -269,7 +275,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       if (overlap) {
         if (occ.studio === studioMatch) {
           conflicts.studio = true;
-          // Studio conflict detail
           conflictingSlot = {
             subject: occ.subject,
             teacher: occ.teacher,
@@ -282,10 +287,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
           }
         }
         
-        // Check for teacher double booking (ignore 'TBA' or empty names)
         if (!occ.isPrep && teacherNorm !== 'tba' && teacherNorm !== '' && occTeacherNorm === teacherNorm) {
           conflicts.teacher = true;
-          // Store teacher conflict info if we don't already have a studio conflict blocking this slot
           if (!conflictingSlot) {
             conflictingSlot = {
               subject: occ.subject,
@@ -308,7 +311,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       endTime: endTime.toISOString(),
       teacher: teacher,
       course: courseIdx !== -1 ? (row[courseIdx] || '') : '',
-      subject: subjectIdx !== -1 ? (row[subjectIdx] || '') : '',
+      subject: subject,
       topic: topicIdx !== -1 ? (row[topicIdx] || '') : '',
       productType: productTypeIdx !== -1 ? (row[productTypeIdx] || '') : '',
       startTimeLabel: format(startTime, 'h:mm a'),
@@ -317,6 +320,17 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       isDuplicate,
       conflictingSlot,
       isBulk: true
+    });
+
+    // Add this slot to batch tracking so the NEXT row can detect conflicts against it
+    batchOccupancy.push({
+      studio: studioMatch,
+      teacher: teacher,
+      start: startTime,
+      end: endTime,
+      isPrep: false,
+      productType: productTypeIdx !== -1 ? (row[productTypeIdx] || '') : 'BULK PREVIEW',
+      subject: subject || 'Batch Preview'
     });
   });
 
