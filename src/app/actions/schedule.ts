@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSheetData, getBulkBookingData } from '@/app/lib/google-sheets';
@@ -41,8 +42,8 @@ function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const parts = dateStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
-    const monthDay = parts[1];
-    const year = parts[2] || new Date().getFullYear().toString();
+    const monthDay = parts[0].match(/^[a-zA-Z]+$/) ? parts[1] : parts[0];
+    const year = parts[parts.length - 1];
     const d = parse(`${monthDay} ${year}`, 'MMMM d yyyy', new Date());
     if (isValid(d)) return d;
   }
@@ -61,9 +62,6 @@ function parseTime(timeStr: string, referenceDay: Date): Date | null {
     return null;
 }
 
-/**
- * Case-insensitive property accessor for spreadsheet row objects
- */
 function getProp(obj: any, candidates: string[]): any {
   const keys = Object.keys(obj);
   for (const cand of candidates) {
@@ -82,7 +80,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
   
   const referenceDay = parse(targetDateStr, 'yyyy-MM-dd', new Date());
 
-  // Process Main Sheet Bookings
   const sheetBookings: ClassBooking[] = allRows
     .map((row, index) => {
       const dateVal = String(row.Date || row.date || '').trim();
@@ -127,7 +124,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     })
     .filter((b): b is ClassBooking => b !== null);
 
-  // Process Bulk Bookings with resilient mapping
   const bulkBookings: ClassBooking[] = bulkRows
     .map((row) => {
       const dateVal = String(getProp(row, ['Date']) || '').trim();
@@ -202,7 +198,6 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     current = next;
   }
 
-  // Prep Slots logic
   const prepSlots: Record<string, Set<string>> = {};
   combinedBookings.forEach(b => {
     const isStudioBooking = (b.productType || '').toLowerCase().includes('studio booking');
@@ -312,15 +307,12 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
   return { date: targetDateStr, studios: ALLOWED_STUDIOS, intervals, grid };
 }
 
-export async function fetchRangeData(start: Date, end: Date): Promise<ClassBooking[]> {
+export async function fetchRangeData(startStr: string, endStr: string): Promise<ClassBooking[]> {
   const [allRows, bulkRows, requestsOverlay] = await Promise.all([
     getSheetData(),
     getBulkBookingData(),
     getActiveRequestsOverlay()
   ]);
-
-  const startStr = format(startOfDay(start), 'yyyy-MM-dd');
-  const endStr = format(endOfDay(end), 'yyyy-MM-dd');
 
   const sheetBookings: ClassBooking[] = allRows
     .map((row, index) => {
