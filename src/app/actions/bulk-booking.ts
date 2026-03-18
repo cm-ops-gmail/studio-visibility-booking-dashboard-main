@@ -58,43 +58,84 @@ function parseTime(timeStr: string, referenceDay: Date): Date | null {
   return null;
 }
 
+/**
+ * Robustly splits a TSV line while respecting quoted fields which may contain newlines or tabs.
+ */
+function robustSplit(text: string, separator: string = '\t'): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') inQuotes = !inQuotes;
+    if (char === separator && !inQuotes) {
+      result.push(current.trim().replace(/^"|"$/g, ''));
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim().replace(/^"|"$/g, ''));
+  return result;
+}
+
+/**
+ * Robustly gets lines from raw text, respecting quoted newlines.
+ */
+function robustGetLines(text: string): string[] {
+  const lines: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') inQuotes = !inQuotes;
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (current.trim()) lines.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  if (current.trim()) lines.push(current);
+  return lines;
+}
+
 export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPreviewEntry[]> {
-  const lines = rawData.trim().split('\n');
+  const lines = robustGetLines(rawData.trim());
   if (lines.length < 2) return [];
 
-  // Robust Header Cleaning
-  const headers = lines[0].split('\t').map(h => h.trim().replace(/["']+/g, ''));
-  const rows = lines.slice(1).map(l => l.split('\t').map(c => c.trim().replace(/["']+/g, '')));
+  const headers = robustSplit(lines[0]).map(h => 
+    h.trim().toLowerCase().replace(/["'\n\r]+/g, ' ')
+  );
+  
+  const rows = lines.slice(1).map(l => robustSplit(l));
 
   const findIdx = (candidates: string[]) => 
     headers.findIndex(h => {
-      const normalizedH = h.toLowerCase();
       return candidates.some(c => {
         const normalizedC = c.toLowerCase();
-        return normalizedH === normalizedC || normalizedH.includes(normalizedC);
+        return h === normalizedC || h.includes(normalizedC);
       });
     });
 
-  const dateIdx = findIdx(['Date']);
-  const timeIdx = findIdx(['Scheduled Time', 'Start Time', 'Class Start Time', 'Time']);
-  let endTimeIdx = findIdx(['End Time', 'Scheduled End Time', 'End']);
-  const studioIdx = findIdx(['Studio']);
-  const teacherIdx = findIdx(['Teacher 1', 'Teacher']);
-  const courseIdx = findIdx(['Course']);
-  const subjectIdx = findIdx(['Subject']);
-  const topicIdx = findIdx(['Topic']);
-  const productTypeIdx = findIdx(['Product Type']);
+  const dateIdx = findIdx(['date']);
+  const timeIdx = findIdx(['scheduled time', 'start time', 'class start time', 'time']);
+  let endTimeIdx = findIdx(['end time', 'scheduled end time']);
+  const studioIdx = findIdx(['studio']);
+  const teacherIdx = findIdx(['teacher 1', 'teacher']);
+  const courseIdx = findIdx(['course']);
+  const subjectIdx = findIdx(['subject']);
+  const topicIdx = findIdx(['topic']);
+  const productTypeIdx = findIdx(['product type']);
 
-  // Smart Inference for End Time: If header is blank but next to Time, and rows contain time-like strings
+  // Smart Inference for End Time: If no explicit header, check if the column after Scheduled Time is a time
   if (endTimeIdx === -1 && timeIdx !== -1 && rows.length > 0) {
     const possibleEndTimeVal = rows[0][timeIdx + 1];
-    // Check if it looks like a time string (e.g., 8:30 PM)
     if (possibleEndTimeVal && /^\d{1,2}:\d{2}/.test(possibleEndTimeVal)) {
       endTimeIdx = timeIdx + 1;
     }
   }
 
-  // Required checks: Must have Date, Time, and Studio
   if (dateIdx === -1 || timeIdx === -1 || studioIdx === -1) {
     return [];
   }
@@ -117,7 +158,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     subject: string;
   }> = [];
 
-  // 1. Parse Main Sheet existing bookings
+  // Parse Main Sheet existing bookings
   sheetData.forEach(row => {
     const dateVal = String(row.Date || '').trim();
     const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
@@ -162,7 +203,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     }
   });
 
-  // 2. Parse Existing Bulk Bookings
+  // Parse Existing Bulk Bookings
   bulkData.forEach(row => {
     const startTimeISO = row.StartTimeISO || row.startTimeISO || row.startTime || row.StartTime;
     const endTimeISO = row.EndTimeISO || row.endTimeISO || row.endTime || row.EndTime;
@@ -198,7 +239,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     }
   });
 
-  // 3. Parse Pending/Approved Requests
+  // Parse Pending/Approved Requests
   requestsData.forEach(r => {
     if ((r.Status !== 'approved' && r.Status !== 'pending') || !r.StartTime) return;
     const start = new Date(r.StartTime);
@@ -251,7 +292,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     existingOccupancy.forEach(occ => {
       if (occ.studio !== studioMatch && occ.teacher !== teacher) return;
 
-      // Check for overlap (exclusive of endpoints)
       const overlap = areIntervalsOverlapping(
         { start: startTime, end: endTime },
         { start: occ.start, end: occ.end }
@@ -266,7 +306,6 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
             time: `${format(occ.start, 'h:mm a')} - ${format(occ.end, 'h:mm a')}`,
             type: occ.isPrep ? 'PREPARATION' : (occ.productType || 'CLASS')
           };
-          // Check for exact duplicates
           if (!occ.isPrep && occ.start.getTime() === startTime.getTime() && occ.end.getTime() === endTime.getTime()) {
             isDuplicate = true;
           }
@@ -305,17 +344,17 @@ export async function submitBulkBookings(entries: BulkPreviewEntry[]) {
   const toSubmit = entries
     .filter(e => !e.isDuplicate && !e.conflicts.studio)
     .map(e => [
-      e.date,               // Date
-      e.startTimeLabel,     // Scheduled Time (Only Start)
-      e.endTimeLabel || '', // End Time
-      e.productType,        // Product Type
-      e.course,             // Course
-      e.subject,            // Subject
-      e.topic,              // Topic
-      e.teacher,            // Teacher 1
-      e.studio,             // Studio
-      e.startTime,          // StartTimeISO
-      e.endTime             // EndTimeISO
+      e.date,
+      e.startTimeLabel,
+      e.endTimeLabel || '',
+      e.productType,
+      e.course,
+      e.subject,
+      e.topic,
+      e.teacher,
+      e.studio,
+      e.startTime,
+      e.endTime
     ]);
 
   if (toSubmit.length > 0) {
