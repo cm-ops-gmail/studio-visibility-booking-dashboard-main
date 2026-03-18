@@ -2,7 +2,7 @@
 
 import { getSheetData, getBulkBookingData } from '@/app/lib/google-sheets';
 import { ClassBooking, DaySchedule, TimeInterval } from '@/app/lib/types';
-import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { parse, format, addHours, isValid, setHours, setMinutes, addMinutes, isWithinInterval, startOfDay, endOfDay, parseISO, isSameDay } from 'date-fns';
 import { getActiveRequestsOverlay } from './booking';
 
 const CLASS_DURATION_HOURS = 2;
@@ -61,6 +61,18 @@ function parseTime(timeStr: string, referenceDay: Date): Date | null {
     return null;
 }
 
+/**
+ * Case-insensitive property accessor for spreadsheet row objects
+ */
+function getProp(obj: any, candidates: string[]): any {
+  const keys = Object.keys(obj);
+  for (const cand of candidates) {
+    const foundKey = keys.find(k => k.toLowerCase().trim() === cand.toLowerCase());
+    if (foundKey) return obj[foundKey];
+  }
+  return null;
+}
+
 export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedule> {
   const [allRows, bulkRows, requestsOverlay] = await Promise.all([
     getSheetData(),
@@ -73,7 +85,7 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
   // Process Main Sheet Bookings
   const sheetBookings: ClassBooking[] = allRows
     .map((row, index) => {
-      const dateVal = String(row.Date || '').trim();
+      const dateVal = String(row.Date || row.date || '').trim();
       const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
       const endTimeVal = String(row['End Time'] || row['Scheduled End Time'] || '').trim();
       const studioRaw = String(row.Studio || row['Studio Name'] || '').trim();
@@ -87,12 +99,12 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
       const studioMatch = normalizeStudio(studioRaw);
       if (!ALLOWED_STUDIOS.includes(studioMatch)) return null;
 
-      const startTime = parseTime(timeVal, referenceDay);
+      const startTime = parseTime(timeVal, parsedDay);
       if (!startTime) return null;
       
       let endTime = addHours(startTime, CLASS_DURATION_HOURS);
       if (endTimeVal) {
-        const parsedEnd = parseTime(endTimeVal, referenceDay);
+        const parsedEnd = parseTime(endTimeVal, parsedDay);
         if (parsedEnd && parsedEnd > startTime) endTime = parsedEnd;
       }
 
@@ -101,11 +113,11 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         studio: studioMatch,
         date: rowDateStr,
         scheduledTime: timeVal,
-        course: String(row.Course || '').trim(),
-        subject: String(row.Subject || '').trim(),
-        topic: String(row.Topic || '').trim(),
-        teacher: String(row['Teacher 1'] || row.Teacher || '').trim(),
-        productType: String(row['Product Type'] || '').trim(),
+        course: String(row.Course || row.course || '').trim(),
+        subject: String(row.Subject || row.subject || '').trim(),
+        topic: String(row.Topic || row.topic || '').trim(),
+        teacher: String(row['Teacher 1'] || row.Teacher || row.teacher || '').trim(),
+        productType: String(row['Product Type'] || row.productType || '').trim(),
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         startTimeLabel: format(startTime, 'h:mm a'),
@@ -115,30 +127,41 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
     })
     .filter((b): b is ClassBooking => b !== null);
 
-  // Process Bulk Bookings
+  // Process Bulk Bookings with resilient mapping
   const bulkBookings: ClassBooking[] = bulkRows
     .map((row) => {
-      const startTimeISO = row.StartTimeISO || row.startTimeISO || row.startTime || row.StartTime;
-      const endTimeISO = row.EndTimeISO || row.endTimeISO || row.endTime || row.EndTime;
+      const dateVal = String(getProp(row, ['Date']) || '').trim();
+      const parsedDay = parseSheetDate(dateVal);
+      if (!parsedDay) return null;
+
+      const rowDateStr = format(parsedDay, 'yyyy-MM-dd');
+      if (rowDateStr !== targetDateStr) return null;
+
+      const startTimeISO = getProp(row, ['StartTimeISO', 'startTimeISO', 'startTime']);
+      const endTimeISO = getProp(row, ['EndTimeISO', 'endTimeISO', 'endTime']);
       
       let startD: Date | null = null;
       let endD: Date | null = null;
 
-      if (startTimeISO && endTimeISO) {
-        const s = new Date(startTimeISO);
-        const e = new Date(endTimeISO);
-        if (isValid(s) && isValid(e)) {
-          startD = s;
-          endD = e;
-        }
+      if (startTimeISO) {
+        startD = new Date(startTimeISO);
+      } else {
+        const timeStr = String(getProp(row, ['Scheduled Time', 'time', 'start time']) || '').trim();
+        startD = parseTime(timeStr, parsedDay);
       }
 
-      if (!startD || !endD) return null;
+      if (!startD || !isValid(startD)) return null;
 
-      const rowDateStr = format(startD, 'yyyy-MM-dd');
-      if (rowDateStr !== targetDateStr) return null;
+      if (endTimeISO) {
+        endD = new Date(endTimeISO);
+      } else {
+        const endTimeStr = String(getProp(row, ['End Time', 'scheduled end time']) || '').trim();
+        endD = parseTime(endTimeStr, parsedDay) || addHours(startD, CLASS_DURATION_HOURS);
+      }
 
-      const studioRaw = row.Studio || row.studio || '';
+      if (!endD || !isValid(endD)) return null;
+
+      const studioRaw = String(getProp(row, ['Studio', 'studio name']) || '');
       const studioMatch = normalizeStudio(studioRaw);
       if (!ALLOWED_STUDIOS.includes(studioMatch)) return null;
 
@@ -146,12 +169,12 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         id: row.id || `bulk-${Math.random()}`,
         studio: studioMatch,
         date: rowDateStr,
-        scheduledTime: row['Scheduled Time'] || `${format(startD, 'h:mm a')}`,
-        course: row.Course || row.course || '',
-        subject: row.Subject || row.subject || '',
-        topic: row.Topic || row.topic || '',
-        teacher: row['Teacher 1'] || row.teacher || '',
-        productType: row['Product Type'] || row.productType || '',
+        scheduledTime: String(getProp(row, ['Scheduled Time']) || format(startD, 'h:mm a')),
+        course: String(getProp(row, ['Course']) || ''),
+        subject: String(getProp(row, ['Subject']) || ''),
+        topic: String(getProp(row, ['Topic']) || ''),
+        teacher: String(getProp(row, ['Teacher 1', 'Teacher']) || ''),
+        productType: String(getProp(row, ['Product Type']) || ''),
         startTime: startD.toISOString(),
         endTime: endD.toISOString(),
         startTimeLabel: format(startD, 'h:mm a'),
@@ -165,8 +188,8 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
   const combinedBookings = [...sheetBookings, ...bulkBookings];
 
   const intervals: TimeInterval[] = [];
-  const dayStart = setMinutes(setHours(referenceDay, DAY_START_HOUR), 0);
-  const dayEnd = setMinutes(setHours(referenceDay, DAY_END_HOUR), 0);
+  const dayStart = setMinutes(setHours(startOfDay(referenceDay), DAY_START_HOUR), 0);
+  const dayEnd = setMinutes(setHours(startOfDay(referenceDay), DAY_END_HOUR), 0);
 
   let current = new Date(dayStart);
   while (current <= dayEnd) {
@@ -296,12 +319,16 @@ export async function fetchRangeData(start: Date, end: Date): Promise<ClassBooki
     getActiveRequestsOverlay()
   ]);
 
-  const interval = { start: startOfDay(start), end: endOfDay(end) };
+  const startStr = format(startOfDay(start), 'yyyy-MM-dd');
+  const endStr = format(endOfDay(end), 'yyyy-MM-dd');
 
   const sheetBookings: ClassBooking[] = allRows
     .map((row, index) => {
-      const parsedDay = parseSheetDate(String(row.Date || ''));
-      if (!parsedDay || !isWithinInterval(parsedDay, interval)) return null;
+      const parsedDay = parseSheetDate(String(row.Date || row.date || ''));
+      if (!parsedDay) return null;
+      
+      const dayStr = format(parsedDay, 'yyyy-MM-dd');
+      if (dayStr < startStr || dayStr > endStr) return null;
 
       const timeVal = String(row['Scheduled Time'] || row.Time || row['Start Time'] || '').trim();
       const studioMatch = normalizeStudio(String(row.Studio || row['Studio Name'] || ''));
@@ -313,13 +340,13 @@ export async function fetchRangeData(start: Date, end: Date): Promise<ClassBooki
       return {
         id: `range-row-${index}`,
         studio: studioMatch,
-        date: format(parsedDay, 'yyyy-MM-dd'),
+        date: dayStr,
         scheduledTime: timeVal,
-        course: String(row.Course || '').trim(),
-        subject: String(row.Subject || '').trim(),
-        topic: String(row.Topic || '').trim(),
-        teacher: String(row['Teacher 1'] || row.Teacher || '').trim(),
-        productType: String(row['Product Type'] || '').trim(),
+        course: String(row.Course || row.course || '').trim(),
+        subject: String(row.Subject || row.subject || '').trim(),
+        topic: String(row.Topic || row.topic || '').trim(),
+        teacher: String(row['Teacher 1'] || row.Teacher || row.teacher || '').trim(),
+        productType: String(row['Product Type'] || row.productType || '').trim(),
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         startTimeLabel: format(startTime, 'h:mm a'),
@@ -331,24 +358,53 @@ export async function fetchRangeData(start: Date, end: Date): Promise<ClassBooki
 
   const bulkBookings: ClassBooking[] = bulkRows
     .map((row) => {
-      const startTimeISO = row.StartTimeISO || row.startTimeISO || row.startTime || row.StartTime;
-      if (!startTimeISO) return null;
-      const startD = new Date(startTimeISO);
-      if (!isValid(startD) || !isWithinInterval(startD, interval)) return null;
+      const dateVal = String(getProp(row, ['Date']) || '').trim();
+      const parsedDay = parseSheetDate(dateVal);
+      if (!parsedDay) return null;
 
-      const endD = new Date(row.EndTimeISO || row.endTimeISO || row.endTime || row.EndTime || addHours(startD, 2).toISOString());
-      const studioMatch = normalizeStudio(row.Studio || row.studio || '');
+      const dayStr = format(parsedDay, 'yyyy-MM-dd');
+      if (dayStr < startStr || dayStr > endStr) return null;
+
+      const startTimeISO = getProp(row, ['StartTimeISO', 'startTimeISO', 'startTime']);
+      if (!startTimeISO) {
+          const timeStr = String(getProp(row, ['Scheduled Time', 'time', 'start time']) || '').trim();
+          const startD = parseTime(timeStr, parsedDay);
+          if (!startD) return null;
+          const endD = addHours(startD, 2);
+          const studioMatch = normalizeStudio(getProp(row, ['Studio', 'studio name']) || '');
+          return {
+            id: row.id || `range-bulk-${Math.random()}`,
+            studio: studioMatch,
+            date: dayStr,
+            scheduledTime: timeStr,
+            course: String(getProp(row, ['Course']) || ''),
+            subject: String(getProp(row, ['Subject']) || ''),
+            topic: String(getProp(row, ['Topic']) || ''),
+            teacher: String(getProp(row, ['Teacher 1', 'Teacher']) || ''),
+            productType: String(getProp(row, ['Product Type']) || ''),
+            startTime: startD.toISOString(),
+            endTime: endD.toISOString(),
+            isBooked: true,
+          };
+      }
+
+      const startD = new Date(startTimeISO);
+      if (!isValid(startD)) return null;
+
+      const endTimeISO = getProp(row, ['EndTimeISO', 'endTimeISO', 'endTime']);
+      const endD = endTimeISO ? new Date(endTimeISO) : addHours(startD, 2);
+      const studioMatch = normalizeStudio(getProp(row, ['Studio', 'studio name']) || '');
 
       return {
         id: row.id || `range-bulk-${Math.random()}`,
         studio: studioMatch,
-        date: format(startD, 'yyyy-MM-dd'),
-        scheduledTime: row['Scheduled Time'] || format(startD, 'h:mm a'),
-        course: row.Course || row.course || '',
-        subject: row.Subject || row.subject || '',
-        topic: row.Topic || row.topic || '',
-        teacher: row['Teacher 1'] || row.teacher || '',
-        productType: row['Product Type'] || row.productType || '',
+        date: dayStr,
+        scheduledTime: String(getProp(row, ['Scheduled Time']) || format(startD, 'h:mm a')),
+        course: String(getProp(row, ['Course']) || ''),
+        subject: String(getProp(row, ['Subject']) || ''),
+        topic: String(getProp(row, ['Topic']) || ''),
+        teacher: String(getProp(row, ['Teacher 1', 'Teacher']) || ''),
+        productType: String(getProp(row, ['Product Type']) || ''),
         startTime: startD.toISOString(),
         endTime: endD.toISOString(),
         startTimeLabel: format(startD, 'h:mm a'),
@@ -361,12 +417,15 @@ export async function fetchRangeData(start: Date, end: Date): Promise<ClassBooki
   const requestBookings: ClassBooking[] = requestsOverlay
     .map((req) => {
       const startD = new Date(req.startTime);
-      if (!isValid(startD) || !isWithinInterval(startD, interval)) return null;
+      if (!isValid(startD)) return null;
+
+      const dayStr = format(startD, 'yyyy-MM-dd');
+      if (dayStr < startStr || dayStr > endStr) return null;
 
       return {
         id: `range-req-${req.id}`,
         studio: req.studio,
-        date: req.date,
+        date: dayStr,
         scheduledTime: format(startD, 'h:mm a'),
         course: 'USER REQUEST',
         subject: req.status === 'pending' ? 'PENDING APPROVAL' : 'APPROVED BOOKING',
