@@ -55,7 +55,7 @@ export default function BulkBookingPage() {
         toast({ 
           variant: "destructive", 
           title: "Parsing Failed", 
-          description: "Check if the data is tab-separated and contains required headers." 
+          description: "Check if the data is tab-separated and contains Date, Scheduled Time, and Studio columns." 
         });
       } else {
         toast({
@@ -77,7 +77,7 @@ export default function BulkBookingPage() {
       const result = await submitBulkBookings(preview);
       toast({ 
         title: "Bulk Booking Complete", 
-        description: `Successfully added ${result.count} new slots.` 
+        description: `Successfully added ${result.count} new slots to the system.` 
       });
       setPreview([]);
       setRawData('');
@@ -118,33 +118,42 @@ export default function BulkBookingPage() {
                 Paste Data from Google Sheets
               </CardTitle>
               <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
-                Copy rows including headers (Date, Start Time, End Time, Studio, Teacher, etc.) and paste them below.
+                Copy rows including headers (Date, Start Time, Studio, Teacher, etc.) and paste them below. Any additional columns will be ignored.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <Textarea 
                 value={rawData}
                 onChange={(e) => setRawData(e.target.value)}
-                placeholder="Date	Start Time	End Time	Product Type	Course	Subject	Topic	Teacher 1	Studio..."
+                placeholder="Date	Scheduled Time	End Time	Product Type	Course	Subject	Topic	Teacher 1	Studio..."
                 className="min-h-[200px] bg-zinc-950 border-zinc-800 text-xs font-mono"
               />
-              <Button 
-                onClick={handleParse} 
-                disabled={loading || !rawData.trim()}
-                className="w-full h-12 bg-zinc-100 hover:bg-white text-black font-black uppercase tracking-[0.2em] rounded-xl"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'PROCESS & PREVIEW'}
-              </Button>
+              <div className="flex gap-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => setRawData('')}
+                  className="h-12 border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-white"
+                >
+                  CLEAR
+                </Button>
+                <Button 
+                  onClick={handleParse} 
+                  disabled={loading || !rawData.trim()}
+                  className="flex-1 h-12 bg-zinc-100 hover:bg-white text-black font-black uppercase tracking-[0.2em] rounded-xl"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'PROCESS & PREVIEW'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
           {preview.length > 0 && (
             <div className="space-y-6 animate-in-fade">
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-4 items-center">
                 {(studioConflicts > 0 || duplicates > 0) && (
                   <Badge variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20 px-4 py-2 rounded-xl gap-2 font-black text-[10px] uppercase tracking-widest">
                     <AlertTriangle className="w-4 h-4" />
-                    {studioConflicts + duplicates} Occupied Slots
+                    {studioConflicts + duplicates} Occupied Slots Detected
                   </Badge>
                 )}
                 {teacherConflicts > 0 && (
@@ -264,11 +273,11 @@ export default function BulkBookingPage() {
                 </div>
               </Card>
 
-              <div className="flex justify-end pt-4 gap-4">
+              <div className="flex justify-end pt-4 gap-4 items-center">
                  {readyCount === 0 && preview.length > 0 && (
                    <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest flex items-center gap-2">
                      <XCircle className="w-4 h-4" />
-                     All entries have conflicts or are duplicates.
+                     No valid slots found in this batch.
                    </p>
                  )}
                 <Button 

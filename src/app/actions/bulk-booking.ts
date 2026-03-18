@@ -62,21 +62,33 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
   const lines = rawData.trim().split('\n');
   if (lines.length < 2) return [];
 
-  const headers = lines[0].split('\t').map(h => h.trim().replace(/"/g, ''));
-  const rows = lines.slice(1).map(l => l.split('\t').map(c => c.trim().replace(/"/g, '')));
+  // Lenient header parsing
+  const headers = lines[0].split('\t').map(h => h.trim().replace(/["']+/g, ''));
+  const rows = lines.slice(1).map(l => l.split('\t').map(c => c.trim().replace(/["']+/g, '')));
 
-  const findIndex = (candidates: string[]) => 
-    headers.findIndex(h => candidates.some(c => h.toLowerCase() === c.toLowerCase() || h.toLowerCase().includes(c.toLowerCase())));
+  const findIdx = (candidates: string[]) => 
+    headers.findIndex(h => {
+      const normalizedH = h.toLowerCase();
+      return candidates.some(c => {
+        const normalizedC = c.toLowerCase();
+        return normalizedH === normalizedC || normalizedH.includes(normalizedC);
+      });
+    });
 
-  const dateIdx = findIndex(['Date']);
-  const timeIdx = findIndex(['Scheduled Time', 'Start Time']);
-  const endTimeIdx = findIndex(['End Time', 'Scheduled End Time']);
-  const studioIdx = findIndex(['Studio']);
-  const teacherIdx = findIndex(['Teacher 1', 'Teacher']);
-  const courseIdx = findIndex(['Course']);
-  const subjectIdx = findIndex(['Subject']);
-  const topicIdx = findIndex(['Topic']);
-  const productTypeIdx = findIndex(['Product Type']);
+  const dateIdx = findIdx(['Date']);
+  const timeIdx = findIdx(['Scheduled Time', 'Start Time', 'Class Start Time']);
+  const endTimeIdx = findIdx(['End Time', 'Scheduled End Time']);
+  const studioIdx = findIdx(['Studio']);
+  const teacherIdx = findIdx(['Teacher 1', 'Teacher']);
+  const courseIdx = findIdx(['Course']);
+  const subjectIdx = findIdx(['Subject']);
+  const topicIdx = findIdx(['Topic']);
+  const productTypeIdx = findIdx(['Product Type']);
+
+  // Required checks
+  if (dateIdx === -1 || timeIdx === -1 || studioIdx === -1) {
+    return [];
+  }
 
   const preview: BulkPreviewEntry[] = [];
 
@@ -202,10 +214,11 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     const startTimeStr = row[timeIdx];
     const endTimeStr = endTimeIdx !== -1 ? row[endTimeIdx] : null;
     const studioRaw = row[studioIdx];
-    const teacher = row[teacherIdx];
+    
+    if (!dateStr || !startTimeStr || !studioRaw) return;
 
     const parsedDay = parseSheetDate(dateStr);
-    if (!parsedDay || !startTimeStr || !studioRaw) return;
+    if (!parsedDay) return;
 
     const startTime = parseTime(startTimeStr, parsedDay);
     if (!startTime) return;
@@ -219,6 +232,7 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
     }
 
     const studioMatch = normalizeStudio(studioRaw);
+    const teacher = teacherIdx !== -1 ? (row[teacherIdx] || 'TBA') : 'TBA';
 
     const conflicts = { studio: false, teacher: false };
     let isDuplicate = false;
@@ -258,11 +272,11 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
       scheduledTime: `${format(startTime, 'h:mm a')} - ${format(endTime, 'h:mm a')}`,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
-      teacher: teacher || 'TBA',
-      course: row[courseIdx] || '',
-      subject: row[subjectIdx] || '',
-      topic: row[topicIdx] || '',
-      productType: row[productTypeIdx] || '',
+      teacher: teacher,
+      course: courseIdx !== -1 ? (row[courseIdx] || '') : '',
+      subject: subjectIdx !== -1 ? (row[subjectIdx] || '') : '',
+      topic: topicIdx !== -1 ? (row[topicIdx] || '') : '',
+      productType: productTypeIdx !== -1 ? (row[productTypeIdx] || '') : '',
       startTimeLabel: format(startTime, 'h:mm a'),
       endTimeLabel: format(endTime, 'h:mm a'),
       conflicts,
@@ -276,8 +290,8 @@ export async function parseAndPreviewBulkData(rawData: string): Promise<BulkPrev
 }
 
 export async function submitBulkBookings(entries: BulkPreviewEntry[]) {
-  // Ordered mapping based on the User Header request:
-  // Date, Scheduled Time, End Time, Product Type, Course, Subject, Topic, Teacher 1, Studio
+  // Columns for the sheet: Date, Scheduled Time (Start), End Time, Product Type, Course, Subject, Topic, Teacher 1, Studio
+  // Internal Columns for sync: StartTimeISO, EndTimeISO
   const toSubmit = entries
     .filter(e => !e.isDuplicate && !e.conflicts.studio)
     .map(e => [
@@ -290,8 +304,8 @@ export async function submitBulkBookings(entries: BulkPreviewEntry[]) {
       e.topic,              // Topic
       e.teacher,            // Teacher 1
       e.studio,             // Studio
-      e.startTime,          // StartTimeISO (Internal)
-      e.endTime             // EndTimeISO (Internal)
+      e.startTime,          // StartTimeISO (Internal for dashboard)
+      e.endTime             // EndTimeISO (Internal for dashboard)
     ]);
 
   if (toSubmit.length > 0) {
