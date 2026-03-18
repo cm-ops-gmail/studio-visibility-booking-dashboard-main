@@ -60,6 +60,8 @@ export interface BulkPreviewEntry extends Omit<ClassBooking, 'isBooked'> {
     time: string;
     type: string;
     studio?: string;
+    topic?: string;
+    date?: string;
   };
 }
 
