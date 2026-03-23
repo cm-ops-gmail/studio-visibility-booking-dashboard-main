@@ -2,11 +2,7 @@
 
 import { getCentralOpsData, getRecordShootData } from '@/app/lib/google-sheets';
 import { UtilizationStat } from '@/app/lib/types';
-import { parse, format, differenceInMinutes, isValid, eachDayOfInterval, startOfDay } from 'date-fns';
-
-const DAY_START_HOUR = 10;
-const DAY_END_HOUR = 22;
-const TOTAL_DAY_HOURS = DAY_END_HOUR - DAY_START_HOUR; // 12 hours
+import { parse, format, differenceInMinutes, isValid, eachDayOfInterval, getDay } from 'date-fns';
 
 const ALLOWED_STUDIOS = [
   'Studio 1 - HQ1', 'Studio 2 - HQ1', 'Studio 3 - HQ1', 'Studio 4 - HQ1', 'Studio 5 - HQ5',
@@ -48,7 +44,11 @@ function parseTime(timeStr: string, referenceDay: Date): Date | null {
   return null;
 }
 
-export async function fetchUtilizationStats(startDateStr: string, endDateStr: string): Promise<UtilizationStat[]> {
+export async function fetchUtilizationStats(
+  startDateStr: string, 
+  endDateStr: string, 
+  scenario: 'original' | 'current' = 'original'
+): Promise<UtilizationStat[]> {
   const [centralOps, recordShoots] = await Promise.all([
     getCentralOpsData(),
     getRecordShootData()
@@ -57,8 +57,23 @@ export async function fetchUtilizationStats(startDateStr: string, endDateStr: st
   const startDayObj = parse(startDateStr, 'yyyy-MM-dd', new Date());
   const endDayObj = parse(endDateStr, 'yyyy-MM-dd', new Date());
 
-  const daysInRange = eachDayOfInterval({ start: startDayObj, end: endDayObj }).length;
-  const totalAvailableHours = daysInRange * TOTAL_DAY_HOURS;
+  const daysInRange = eachDayOfInterval({ start: startDayObj, end: endDayObj });
+  
+  // Calculate total capacity based on scenario
+  let totalAvailableHoursPerStudio = 0;
+  daysInRange.forEach(day => {
+    const dayOfWeek = getDay(day); // 0 (Sun) to 6 (Sat)
+    if (scenario === 'original') {
+      totalAvailableHoursPerStudio += 12; // Fixed 12h: 10am-10pm
+    } else {
+      // Current Scenario: 2pm-10pm (8h) Sun-Thu, 4h Fri-Sat
+      if (dayOfWeek === 5 || dayOfWeek === 6) { // Fri or Sat
+        totalAvailableHoursPerStudio += 4;
+      } else {
+        totalAvailableHoursPerStudio += 8;
+      }
+    }
+  });
 
   const stats: Record<string, UtilizationStat> = {};
   ALLOWED_STUDIOS.forEach(studio => {
@@ -66,12 +81,12 @@ export async function fetchUtilizationStats(startDateStr: string, endDateStr: st
       studio,
       percentage: 0,
       usedHours: 0,
-      totalAvailableHours,
+      totalAvailableHours: totalAvailableHoursPerStudio,
       details: { classes: [], shoots: [] }
     };
   });
 
-  // Process Central Ops (2.5 hours per entry)
+  // Process Central Ops (Fixed 2.5 hours per entry)
   centralOps.forEach(row => {
     const parsedDate = parseSheetDate(row.Date || '');
     if (!parsedDate) return;
@@ -85,7 +100,7 @@ export async function fetchUtilizationStats(startDateStr: string, endDateStr: st
       stats[studio].details.classes.push({
         date: format(parsedDate, 'MMM d, yyyy'),
         time: row['Scheduled Time'] || 'N/A',
-        topic: row.Topic || 'Untitled Topic',
+        topic: row.Topic || row.Subject || 'Untitled Topic',
         subject: row.Subject || '',
         teacher: row['Teacher 1'] || 'TBA',
         duration: 2.5
@@ -93,7 +108,7 @@ export async function fetchUtilizationStats(startDateStr: string, endDateStr: st
     }
   });
 
-  // Process Record Shoots
+  // Process Record Shoots (Variable duration)
   recordShoots.forEach(row => {
     const parsedDate = parseSheetDate(row.Date || '');
     if (!parsedDate) return;
@@ -122,7 +137,7 @@ export async function fetchUtilizationStats(startDateStr: string, endDateStr: st
     }
   });
 
-  // Calculate percentages
+  // Final aggregate calculation
   return Object.values(stats).map(stat => ({
     ...stat,
     percentage: stat.totalAvailableHours > 0 
