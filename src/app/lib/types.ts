@@ -1,3 +1,4 @@
+
 export interface ClassBooking {
   id: string;
   studio: string;
@@ -79,4 +80,30 @@ export interface UtilizationStat {
     classes: any[];
     shoots: any[];
   };
+}
+
+export interface TeacherConflictInfo {
+  isBusy: boolean;
+  conflict?: {
+    subject: string;
+    topic?: string;
+    time: string;
+    studio: string;
+    date: string;
+  };
+}
+
+export interface SuggestedRoutineSlot {
+  id: string;
+  date: string;
+  dateLabel: string;
+  studio: string;
+  startTime: string;
+  endTime: string;
+  timeLabel: string;
+  availableTeachers: string[]; // Still keep for simple usage
+  teacherPoolStatus: Record<string, TeacherConflictInfo>; // Detailed status for every teacher
+  selectedTeacher?: string;
+  subject?: string;
+  topic?: string;
 }
