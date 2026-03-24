@@ -236,7 +236,7 @@ export default function StudioUtilizationPage() {
       </div>
       
       <footer className="mt-20 border-t border-zinc-900 py-12 text-center">
-        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em]">© 2026 10 MS CONTENT OPERATIONS HUB</p>
+        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em]">© 2026 10 MS CONTENT OPERATIONS. ALL RIGHTS RESERVED.</p>
       </footer>
     </div>
   );
