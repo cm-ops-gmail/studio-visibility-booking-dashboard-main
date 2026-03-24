@@ -7,7 +7,7 @@ import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays, isBefore, parse, isValid, eachDayOfInterval, startOfDay, addMinutes, setHours, setMinutes, isSameDay, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, CheckCircle2, CircleDashed, CalendarDays, Lock, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange, ChevronDown, ChevronUp, Search, MapPin, Eye, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, CheckCircle2, CircleDashed, CalendarDays, Lock, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange, ChevronDown, ChevronUp, Search, MapPin, Eye, BarChart3, Sparkles } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -322,6 +322,11 @@ export function CalendarDashboard() {
           <Image src="/logo.png" alt="Content Operations" fill className="object-contain" priority />
         </div>
         <div className="flex items-center gap-4">
+          <Link href="/routine">
+            <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-orange-500" /> Make Your Routine
+            </Button>
+          </Link>
           <Link href="/utilization">
             <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
               <BarChart3 className="w-3.5 h-3.5" /> Studio Utilization
