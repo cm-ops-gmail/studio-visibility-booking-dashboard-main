@@ -94,7 +94,7 @@ export default function ChatPage() {
                     )}
                     <div
                       className={cn(
-                        "max-w-lg p-4 rounded-2xl text-sm leading-relaxed",
+                        "max-w-lg p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap",
                         message.sender === 'user'
                           ? "bg-indigo-600 text-white rounded-br-none"
                           : "bg-zinc-800 text-zinc-200 rounded-bl-none"
