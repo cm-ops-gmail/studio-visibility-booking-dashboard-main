@@ -7,7 +7,7 @@ import { DaySchedule, ClassBooking } from '@/app/lib/types';
 import { format, addDays, subDays, isBefore, parse, isValid, eachDayOfInterval, startOfDay, addMinutes, setHours, setMinutes, isSameDay, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, CheckCircle2, CircleDashed, CalendarDays, Lock, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange, ChevronDown, ChevronUp, Search, MapPin, Eye, BarChart3, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Clock, Filter, Layers, XCircle, CheckCircle2, CircleDashed, CalendarDays, Lock, Monitor, Calendar as CalendarIcon, LayoutList, CalendarRange, ChevronDown, ChevronUp, Search, MapPin, Eye, BarChart3, Sparkles, Bot } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SlotCard } from '@/components/SlotCard';
@@ -340,6 +340,11 @@ export function CalendarDashboard() {
           <Link href="/bulk-booking">
             <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
               <LayoutList className="w-3.5 h-3.5" /> Bulk Slot Booking
+            </Button>
+          </Link>
+          <Link href="/chat">
+            <Button variant="ghost" className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.2em] gap-2">
+              <Bot className="w-3.5 h-3.5" /> Chat
             </Button>
           </Link>
           <Link href="/admin">
