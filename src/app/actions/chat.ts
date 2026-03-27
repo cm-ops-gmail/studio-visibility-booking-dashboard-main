@@ -17,18 +17,23 @@ export async function sendMessageToAgent(message: string): Promise<string> {
       throw new Error(`Webhook failed with status: ${response.status}`);
     }
 
-    // The user's n8n configuration suggests a plain text response body.
     const text = await response.text();
     
+    let answer = text;
     try {
-      // It's possible n8n still wraps a plain text response in JSON.
       const data = JSON.parse(text);
-      const reply = data.answer || data.text || text;
-      return reply;
-    } catch (e) {
-      // If parsing fails, it's just plain text.
-      return text;
+      if (Array.isArray(data)) {
+        if (data.length > 0) {
+            answer = data[0].text || data[0].answer || text;
+        }
+      } else {
+        answer = data.text || data.answer || text;
+      }
+    } catch(e) {
+        // if it fails to parse, answer is just the text.
     }
+    
+    return answer;
 
   } catch (error) {
     console.error('Error calling n8n webhook:', error);
