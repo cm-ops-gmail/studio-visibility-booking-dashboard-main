@@ -17,16 +17,16 @@ export async function sendMessageToAgent(message: string): Promise<string> {
       throw new Error(`Webhook failed with status: ${response.status}`);
     }
 
+    // The user's n8n configuration suggests a plain text response body.
     const text = await response.text();
     
     try {
-      // n8n might return JSON, so we try to parse it.
+      // It's possible n8n still wraps a plain text response in JSON.
       const data = JSON.parse(text);
-      // User's snippet looks for 'answer' or 'text', with a fallback to the raw text.
       const reply = data.answer || data.text || text;
       return reply;
     } catch (e) {
-      // If it's not JSON, the response is plain text.
+      // If parsing fails, it's just plain text.
       return text;
     }
 
