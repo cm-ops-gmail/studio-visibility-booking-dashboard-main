@@ -9,6 +9,7 @@ export async function sendMessageToAgent(message: string): Promise<string> {
       headers: {
         'Content-Type': 'application/json',
       },
+      cache: 'no-store',
       body: JSON.stringify({ question: message }),
     });
 
@@ -18,23 +19,30 @@ export async function sendMessageToAgent(message: string): Promise<string> {
 
     const text = await response.text();
     
-    let answer = text;
-    
+    if (!text || text.trim() === '') {
+      return 'No response received from agent.';
+    }
+
+    let answer = '';
+
     try {
       const data = JSON.parse(text);
       
-      if (Array.isArray(data)) {
-        answer = data[0]?.text || data[0]?.answer || text;
-      } else if (typeof data === 'object') {
-        answer = data.text || data.answer || data.output || data.message || text;
-      } else {
+      if (Array.isArray(data) && data.length > 0) {
+        answer = data[0]?.text || data[0]?.answer || '';
+      } else if (typeof data === 'object' && data !== null) {
+        answer = data.text || data.answer || data.output || data.message || '';
+      }
+      
+      if (!answer) {
         answer = text;
       }
+      
     } catch(e) {
       answer = text;
     }
 
-    return answer.replace(/\\n/g, '\n');
+    return answer;
 
   } catch (error) {
     console.error('Error calling n8n webhook:', error);
