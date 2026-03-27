@@ -9,7 +9,6 @@ export async function sendMessageToAgent(message: string): Promise<string> {
       headers: {
         'Content-Type': 'application/json',
       },
-      // Changed 'message' to 'question' to match user's example
       body: JSON.stringify({ question: message }),
     });
 
@@ -20,20 +19,22 @@ export async function sendMessageToAgent(message: string): Promise<string> {
     const text = await response.text();
     
     let answer = text;
+    
     try {
       const data = JSON.parse(text);
+      
       if (Array.isArray(data)) {
-        if (data.length > 0) {
-            answer = data[0].text || data[0].answer || text;
-        }
+        answer = data[0]?.text || data[0]?.answer || text;
+      } else if (typeof data === 'object') {
+        answer = data.text || data.answer || data.output || data.message || text;
       } else {
-        answer = data.text || data.answer || text;
+        answer = text;
       }
     } catch(e) {
-        // if it fails to parse, answer is just the text.
+      answer = text;
     }
-    
-    return answer;
+
+    return answer.replace(/\\n/g, '\n');
 
   } catch (error) {
     console.error('Error calling n8n webhook:', error);
