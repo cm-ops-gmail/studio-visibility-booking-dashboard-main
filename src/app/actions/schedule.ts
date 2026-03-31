@@ -40,15 +40,30 @@ function normalizeStudio(name: string): string {
 
 function parseSheetDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  const parts = dateStr.split(',').map(p => p.trim());
-  if (parts.length >= 2) {
-    const monthDay = parts[0].match(/^[a-zA-Z]+$/) ? parts[1] : parts[0];
-    const year = parts[parts.length - 1];
-    const d = parse(`${monthDay} ${year}`, 'MMMM d yyyy', new Date());
-    if (isValid(d)) return d;
+
+  // List of common date formats to try
+  const formatsToTry = [
+    'MMMM d, yyyy', // "April 1, 2024"
+    'MMM d, yyyy',  // "Apr 1, 2024"
+    'M/d/yyyy',     // "4/1/2024"
+    'MM/dd/yyyy',   // "04/01/2024"
+    'yyyy-MM-dd',   // "2024-04-01"
+  ];
+
+  for (const fmt of formatsToTry) {
+    const d = parse(dateStr, fmt, new Date());
+    if (isValid(d)) {
+      return d;
+    }
   }
-  const d = new Date(dateStr);
-  return isValid(d) ? d : null;
+  
+  // Fallback for any other format that `new Date` can handle
+  const fallbackDate = new Date(dateStr);
+  if (isValid(fallbackDate)) {
+    return fallbackDate;
+  }
+
+  return null;
 }
 
 function parseTime(timeStr: string, referenceDay: Date): Date | null {
