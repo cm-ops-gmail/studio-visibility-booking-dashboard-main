@@ -1,6 +1,6 @@
 'use server';
 
-const N8N_WEBHOOK_URL = 'https://vibeacademy.cloud/webhook/4a9b90cf-f01d-4135-950b-eb72bd900d32';
+const N8N_WEBHOOK_URL = 'https://stage-n8n.10minuteschool.com/webhook/4a9b90cf-f01d-4135-950b-eb72bd900d32';
 
 export async function sendMessageToAgent(message: string): Promise<string> {
   try {
