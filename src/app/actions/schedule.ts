@@ -246,26 +246,47 @@ export async function fetchDaySchedule(targetDateStr: string): Promise<DaySchedu
         if (req.studio !== studio || req.date !== targetDateStr) return false;
         const reqStart = new Date(req.startTime);
         if (!isValid(reqStart)) return false;
-        let durationHrs = req.duration === '30 mins' ? 0.5 : (req.duration === '1 hr 30 mins' ? 1.5 : (req.duration === '2 hrs' ? 2 : 1));
+        let durationHrs = 1;
+        const d = req.duration;
+        if (d.includes('mins')) {
+            durationHrs = 0.5;
+            if (d.includes('hr')) {
+                durationHrs += parseInt(d.split(' ')[0], 10);
+            }
+        } else if (d.includes('hr')) {
+            durationHrs = parseInt(d.split(' ')[0], 10);
+        }
         const reqEnd = addHours(reqStart, durationHrs);
         return midPoint >= reqStart && midPoint < reqEnd;
       });
 
-      const activeBooking = activeSheetBooking || (activeRequest ? {
-        id: `req-${activeRequest.id}`,
-        studio: activeRequest.studio,
-        date: activeRequest.date,
-        scheduledTime: format(new Date(activeRequest.startTime), 'h:mm a'),
-        course: 'USER REQUEST',
-        subject: activeRequest.status === 'pending' ? 'PENDING APPROVAL' : 'APPROVED BOOKING',
-        topic: `Duration: ${activeRequest.duration}`,
-        teacher: 'Pending',
-        productType: 'STUDIO BOOKING',
-        startTime: activeRequest.startTime,
-        endTime: addHours(new Date(activeRequest.startTime), 1).toISOString(),
-        isBooked: true,
-        requestStatus: activeRequest.status,
-      } as ClassBooking : null);
+      const activeBooking = activeSheetBooking || (activeRequest ? (() => {
+        let durationHrs = 1;
+        const d = activeRequest.duration;
+        if (d.includes('mins')) {
+            durationHrs = 0.5;
+            if (d.includes('hr')) {
+                durationHrs += parseInt(d.split(' ')[0], 10);
+            }
+        } else if (d.includes('hr')) {
+            durationHrs = parseInt(d.split(' ')[0], 10);
+        }
+        return {
+          id: `req-${activeRequest.id}`,
+          studio: activeRequest.studio,
+          date: activeRequest.date,
+          scheduledTime: format(new Date(activeRequest.startTime), 'h:mm a'),
+          course: 'USER REQUEST',
+          subject: activeRequest.status === 'pending' ? 'PENDING APPROVAL' : 'APPROVED BOOKING',
+          topic: `Duration: ${activeRequest.duration}`,
+          teacher: 'Pending',
+          productType: 'STUDIO BOOKING',
+          startTime: activeRequest.startTime,
+          endTime: addHours(new Date(activeRequest.startTime), durationHrs).toISOString(),
+          isBooked: true,
+          requestStatus: activeRequest.status,
+        } as ClassBooking;
+      })() : null);
 
       const isPrepSlot = !activeBooking && prepSlots[interval.start]?.has(studio);
 
@@ -428,6 +449,17 @@ export async function fetchRangeData(startStr: string, endStr: string): Promise<
 
       const dayStr = format(startD, 'yyyy-MM-dd');
       if (dayStr < startStr || dayStr > endStr) return null;
+      
+      let durationHrs = 1;
+      const d = req.duration;
+      if (d.includes('mins')) {
+          durationHrs = 0.5;
+          if (d.includes('hr')) {
+              durationHrs += parseInt(d.split(' ')[0], 10);
+          }
+      } else if (d.includes('hr')) {
+          durationHrs = parseInt(d.split(' ')[0], 10);
+      }
 
       return {
         id: `range-req-${req.id}`,
@@ -440,7 +472,7 @@ export async function fetchRangeData(startStr: string, endStr: string): Promise<
         teacher: 'Pending',
         productType: 'STUDIO BOOKING',
         startTime: req.startTime,
-        endTime: addHours(startD, 1).toISOString(),
+        endTime: addHours(startD, durationHrs).toISOString(),
         isBooked: true,
         requestStatus: req.status,
       };
