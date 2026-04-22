@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { submitBookingRequest } from '@/app/actions/booking';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from "@/components/ui/toast";
 
 interface SlotCardProps {
   slot: ClassBooking;
@@ -67,16 +68,27 @@ export function SlotCard({ slot }: SlotCardProps) {
         duration: selectedDuration,
       });
 
-      const formLink = "https://forms.gle/bf4WzXLC9KCoD2WG8"; 
-      window.open(formLink, '_blank');
-
-      toast({
-        title: "Redirecting to Form",
-        description: "Local request recorded. Please complete the details in the Google Form.",
-      });
+      const formLink = "https://forms.gle/bf4WzXLC9KCoD2WG8";
+      const newWindow = window.open(formLink, '_blank', 'noopener,noreferrer');
+      
+      if (newWindow) {
+        toast({
+          title: "Redirecting to Form",
+          description: "Local request recorded. Please complete the details in the Google Form.",
+        });
+      } else {
+         toast({
+          title: "Pop-up Blocked",
+          description: "Your browser may have blocked the pop-up. Click to open the form manually.",
+          action: (
+            <ToastAction altText="Open form" onClick={() => window.open(formLink, '_blank', 'noopener,noreferrer')}>
+              Open Form
+            </ToastAction>
+          ),
+        });
+      }
 
       setIsDialogOpen(false);
-      window.location.reload();
     } catch (error) {
       toast({
         variant: "destructive",
@@ -249,6 +261,14 @@ export function SlotCard({ slot }: SlotCardProps) {
                       <SelectItem value="1 hr">1 HR</SelectItem>
                       <SelectItem value="1 hr 30 mins">1 HR 30 MINS</SelectItem>
                       <SelectItem value="2 hrs">2 HRS</SelectItem>
+                      <SelectItem value="2 hrs 30 mins">2 HRS 30 MINS</SelectItem>
+                      <SelectItem value="3 hrs">3 HRS</SelectItem>
+                      <SelectItem value="3 hrs 30 mins">3 HRS 30 MINS</SelectItem>
+                      <SelectItem value="4 hrs">4 HRS</SelectItem>
+                      <SelectItem value="4 hrs 30 mins">4 HRS 30 MINS</SelectItem>
+                      <SelectItem value="5 hrs">5 HRS</SelectItem>
+                      <SelectItem value="5 hrs 30 mins">5 HRS 30 MINS</SelectItem>
+                      <SelectItem value="6 hrs">6 HRS</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
