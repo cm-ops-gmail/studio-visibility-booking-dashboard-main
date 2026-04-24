@@ -12,6 +12,7 @@ const DAY_END_HOUR = 22;
 const INTERVAL_MINUTES = 30;
 
 const ALLOWED_STUDIOS = [
+  'NB2-Meeting Room',
   'Studio 1 - HQ1',
   'Studio 2 - HQ1',
   'Studio 3 - HQ1',
