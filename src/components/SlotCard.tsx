@@ -267,8 +267,6 @@ export function SlotCard({ slot }: SlotCardProps) {
                       <SelectItem value="4 hrs">4 HRS</SelectItem>
                       <SelectItem value="4 hrs 30 mins">4 HRS 30 MINS</SelectItem>
                       <SelectItem value="5 hrs">5 HRS</SelectItem>
-                      <SelectItem value="5 hrs 30 mins">5 HRS 30 MINS</SelectItem>
-                      <SelectItem value="6 hrs">6 HRS</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
